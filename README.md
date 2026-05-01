@@ -11,15 +11,64 @@ This is a minor project developed by students at **KLE Tech** in collaboration w
 * **Seamless Integration:** Ensure the new Go services connect flawlessly to the existing core infrastructure (Zuul API Gateway, MDMS, User Service, and PostgreSQL).
 
 ## Project Roadmap
--  **Phase 1: Baseline Architecture Deployment** - Provisioned Azure Virtual Machine.
+**Phase 1: Baseline Architecture Deployment** - Provisioned Azure Virtual Machine.
   - Deployed stateful infrastructure (Postgres, Redis, Kafka).
   - Deployed Java baseline of Core and Business services via Kubernetes/Helm.
   - Captured Postman baseline metrics for API routing and OAuth2 security.
--  **Phase 2: The Go Rewrite (In Progress)**
+**Phase 2: The Go Rewrite (In Progress)**
   - Map Java Swagger contracts to Go structs.
   - Rewrite `echallan-calculator` penalty logic in Go.
   - Rewrite `echallan-services` core logic in Go.
--  **Phase 3: Containerization & Swap**
+**Phase 3: Containerization & Swap**
   - Dockerize Go applications.
   - Perform live Kubernetes pod swap (Java -> Go).
   - Final end-to-end integration testing.
+
+  🛠️ Tech Stack
+Language: Go (Golang)
+
+Framework: Gin / Fiber (TBD)
+
+Infrastructure: Kubernetes, Helm, Docker, Azure
+
+Databases: PostgreSQL, Redis
+
+Team
+Raghavendra Rao Kulkarni-  DevOps & Cloud Infrastructure
+
+Sneha Channappagoudar - Core Services & Database Integration
+
+Harshitha M B - Business Logic & API Translation
+
+Spurti SMK - API Testing, Environment setup
+
+
+---
+
+### **3. How to initialize and push this to GitHub (Terminal)**
+
+Once you have created the empty repository on GitHub (let's assume you named it `digit-echallan-go`), open your terminal on your local laptop, create a folder, and run these commands to push your first commit:
+
+```bash
+# 1. Create your project folder and enter it
+mkdir digit-echallan-go
+cd digit-echallan-go
+
+# 2. Initialize Git
+git init
+
+# 3. Create the README file (Paste the markdown above into this file)
+nano README.md  
+
+# 4. Add the file to version control
+git add README.md
+
+# 5. Commit the file
+git commit -m "Initial commit: Added professional README and project roadmap"
+
+# 6. Link it to your GitHub repository (Replace YOUR_USERNAME with your actual GitHub username)
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/digit-echallan-go.git
+
+# 7. Push it to the cloud!
+git push -u origin main
