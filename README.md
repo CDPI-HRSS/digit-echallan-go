@@ -34,7 +34,8 @@ Infrastructure: Kubernetes, Helm, Docker, Azure
 
 Databases: PostgreSQL, Redis
 
-Team
+## Team
+
 Raghavendra Rao Kulkarni-  DevOps & Cloud Infrastructure
 
 Sneha Channappagoudar - Core Services & Database Integration
