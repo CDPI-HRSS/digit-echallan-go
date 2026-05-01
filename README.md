@@ -14,10 +14,12 @@ This repository contains the Go (Golang) conversion of the **DIGIT e-Challan** m
   - Deployed stateful infrastructure (Postgres, Redis, Kafka).
   - Deployed Java baseline of Core and Business services via Kubernetes/Helm.
   - Captured Postman baseline metrics for API routing and OAuth2 security.
+  
 **Phase 2: The Go Rewrite (In Progress)**
   - Map Java Swagger contracts to Go structs.
   - Rewrite `echallan-calculator` penalty logic in Go.
   - Rewrite `echallan-services` core logic in Go.
+  
 **Phase 3: Containerization & Swap**
   - Dockerize Go applications.
   - Perform live Kubernetes pod swap (Java -> Go).
