@@ -3,7 +3,6 @@
 ## Project Overview
 This repository contains the Go (Golang) conversion of the **DIGIT e-Challan** microservices. Originally written in Java (Spring Boot), this project acts as a "drop-in replacement" for the `echallan-services` and `echallan-calculator` modules within the eGov DIGIT ecosystem.
 
-This is a minor project developed by students at **KLE Tech** in collaboration with the DPI (Digital Public Infrastructure) initiative.
 
 ##  Objectives
 * **Performance Optimization:** Drastically reduce the memory footprint and container startup times by replacing the Java Virtual Machine (JVM) with compiled Go binaries.
