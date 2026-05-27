@@ -1,0 +1,41 @@
+{
+  "RequestInfo": {
+    "apiId": "org.egov.echallan",
+    "ver": "1.0",
+    "ts": 1629864210000,
+    "action": "POST",
+    "msgId": "123456",
+    "userInfo": {
+      "id": 1,
+      "uuid": "test-uuid-001",
+      "userName": "testuser",
+      "type": "EMPLOYEE",
+      "tenantId": "pb.amritsar",
+      "roles": [
+        {
+          "name": "Employee",
+          "code": "EMPLOYEE",
+          "tenantId": "pb.amritsar"
+        }
+      ]
+    }
+  },
+  "CalulationCriteria": [
+    {
+      "tenantId": "pb.amritsar",
+      "challanNo": "CH-1234-5678",
+      "challan": {
+        "tenantId": "pb.amritsar",
+        "challanNo": "CH-1234-5678",
+        "businessService": "ECHALLAN",
+        "applicationStatus": "ACTIVE",
+        "taxPeriodFrom": 1629849600000,
+        "taxPeriodTo": 1632528000000,
+        "amount": [
+          { "taxHeadCode": "CHALLAN_FEE", "amount": 500.00 }
+        ]
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,17 @@
+# Environment variables
+.env
+
+# Logs
+*.log
+service.log
+
+# Build outputs
+echallan-calculator
+*.exe
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Vendor directory
+vendor/
