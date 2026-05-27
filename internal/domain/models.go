@@ -1,4 +1,4 @@
-package models
+package domain
 
 // RequestInfo handles the security and routing metadata
 type RequestInfo struct {
