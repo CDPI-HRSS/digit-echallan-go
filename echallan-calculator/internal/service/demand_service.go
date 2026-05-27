@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/CDPI-HRSS/calci_sp/internal/config"
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
+	"github.com/CDPI-HRSS/calci_sp/internal/models"
 	"github.com/CDPI-HRSS/calci_sp/internal/repository"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
 )

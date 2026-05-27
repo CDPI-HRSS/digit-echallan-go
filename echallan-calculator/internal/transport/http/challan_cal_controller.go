@@ -3,7 +3,7 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
+	"github.com/CDPI-HRSS/calci_sp/internal/models"
 	"github.com/CDPI-HRSS/calci_sp/internal/service"
 	"github.com/gin-gonic/gin"
 )

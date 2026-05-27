@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/CDPI-HRSS/calci_sp/internal/config"
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
+	"github.com/CDPI-HRSS/calci_sp/internal/models"
 )
 
 type ServiceRequestRepository struct {
