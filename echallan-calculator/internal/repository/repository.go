@@ -46,7 +46,9 @@ func (r *ServiceRequestRepository) FetchResult(url string, requestPayload interf
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	// 10MB max response size to prevent memory exhaustion / OOM from downstream failures
+	limitReader := io.LimitReader(resp.Body, 10*1024*1024)
+	respBody, err := io.ReadAll(limitReader)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
