@@ -6,7 +6,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/config"
+	"github.com/CDPI-HRSS/calci_sp/configs"
 	"github.com/CDPI-HRSS/calci_sp/internal/models"
 	"github.com/CDPI-HRSS/calci_sp/internal/repository"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
@@ -15,13 +15,13 @@ import (
 const MDMSRoundOffTaxHead = "_ROUNDOFF"
 
 type DemandService struct {
-	cfg        *config.Config
+	cfg        *configs.Config
 	utils      *util.CalculationUtils
 	srRepo     *repository.ServiceRequestRepository
 	demandRepo *repository.DemandRepository
 }
 
-func NewDemandService(cfg *config.Config, utils *util.CalculationUtils, srRepo *repository.ServiceRequestRepository, demandRepo *repository.DemandRepository) *DemandService {
+func NewDemandService(cfg *configs.Config, utils *util.CalculationUtils, srRepo *repository.ServiceRequestRepository, demandRepo *repository.DemandRepository) *DemandService {
 	return &DemandService{
 		cfg:        cfg,
 		utils:      utils,

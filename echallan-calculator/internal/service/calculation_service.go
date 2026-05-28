@@ -4,29 +4,35 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/config"
+	"github.com/CDPI-HRSS/calci_sp/configs"
 	"github.com/CDPI-HRSS/calci_sp/internal/models"
 	"github.com/CDPI-HRSS/calci_sp/internal/repository"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
+	"github.com/CDPI-HRSS/calci_sp/internal/validator"
 )
 
 type CalculationService struct {
-	cfg           *config.Config
+	cfg           *configs.Config
 	utils         *util.CalculationUtils
 	srRepo        *repository.ServiceRequestRepository
 	demandService *DemandService
+	validator     *validator.CalculatorValidator
 }
 
-func NewCalculationService(cfg *config.Config, utils *util.CalculationUtils, srRepo *repository.ServiceRequestRepository, demandService *DemandService) *CalculationService {
+func NewCalculationService(cfg *configs.Config, utils *util.CalculationUtils, srRepo *repository.ServiceRequestRepository, demandService *DemandService, val *validator.CalculatorValidator) *CalculationService {
 	return &CalculationService{
 		cfg:           cfg,
 		utils:         utils,
 		srRepo:        srRepo,
 		demandService: demandService,
+		validator:     val,
 	}
 }
 
 func (s *CalculationService) GetCalculation(req *models.CalculationReq) ([]models.Calculation, error) {
+	if err := s.validator.ValidateCalculationReq(req); err != nil {
+		return nil, err
+	}
 	calculations, err := s.getCalculationInternal(req.RequestInfo, req.CalulationCriteria)
 	if err != nil {
 		return nil, err
