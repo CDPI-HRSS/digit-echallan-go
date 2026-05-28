@@ -12,7 +12,8 @@ import (
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/postgres"
 	"github.com/CDPI-HRSS/echallan-services/internal/service"
 	httptransport "github.com/CDPI-HRSS/echallan-services/internal/transport/http"
-	kafkatransport "github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
+	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
+	"github.com/CDPI-HRSS/echallan-services/internal/validator"
 )
 
 func main() {
@@ -33,7 +34,8 @@ func main() {
 
 	// 3. Dependency Injection (Wiring)
 	repo := postgres.NewChallanRepository(db)
-	challanSvc := service.NewChallanService(producer, repo)
+	val := validator.NewChallanValidator()
+	challanSvc := service.NewChallanService(producer, repo, val)
 	challanCtrl := httptransport.NewChallanController(challanSvc)
 	
 	paymentSvc := service.NewPaymentUpdateService(producer)

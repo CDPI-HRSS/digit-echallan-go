@@ -7,24 +7,27 @@ import (
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/postgres"
 	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
+	"github.com/CDPI-HRSS/echallan-services/internal/validator"
 )
 
 type challanServiceImpl struct {
-	producer *kafka.Producer
-	repo     postgres.ChallanRepository
+	producer  *kafka.Producer
+	repo      postgres.ChallanRepository
+	validator *validator.ChallanValidator
 }
 
-func NewChallanService(producer *kafka.Producer, repo postgres.ChallanRepository) ChallanService {
+func NewChallanService(producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator) ChallanService {
 	return &challanServiceImpl{
-		producer: producer,
-		repo:     repo,
+		producer:  producer,
+		repo:      repo,
+		validator: val,
 	}
 }
 
 func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan, error) {
 	// 1. Validation Logic
-	if req.Challan == nil {
-		return nil, fmt.Errorf("Challan object is missing from request payload")
+	if err := s.validator.ValidateCreateRequest(req); err != nil {
+		return nil, err
 	}
 	// This would typically involve validating against MDMS Master Data
 	
@@ -57,8 +60,8 @@ func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan
 
 func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan, error) {
 	// 1. Validation and fetch existing (omitted)
-	if req.Challan == nil {
-		return nil, fmt.Errorf("Challan object is missing from request payload")
+	if err := s.validator.ValidateUpdateRequest(req); err != nil {
+		return nil, err
 	}
 
 	// 2. Audit Details Enrichment

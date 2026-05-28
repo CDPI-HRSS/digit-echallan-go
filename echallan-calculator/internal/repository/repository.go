@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/config"
+	"github.com/CDPI-HRSS/calci_sp/configs"
 	"github.com/CDPI-HRSS/calci_sp/internal/models"
 )
 
@@ -68,11 +68,11 @@ func (r *ServiceRequestRepository) FetchResult(url string, requestPayload interf
 }
 
 type DemandRepository struct {
-	cfg    *config.Config
+	cfg    *configs.Config
 	srRepo *ServiceRequestRepository
 }
 
-func NewDemandRepository(cfg *config.Config, srRepo *ServiceRequestRepository) *DemandRepository {
+func NewDemandRepository(cfg *configs.Config, srRepo *ServiceRequestRepository) *DemandRepository {
 	return &DemandRepository{
 		cfg:    cfg,
 		srRepo: srRepo,

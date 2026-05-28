@@ -3,8 +3,10 @@ package postgres
 import (
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
+	"github.com/CDPI-HRSS/echallan-services/internal/repository/query"
+	"github.com/CDPI-HRSS/echallan-services/internal/repository/rowmapper"
+	"github.com/jmoiron/sqlx"
 )
 
 type ChallanRepository interface {
@@ -21,33 +23,42 @@ func NewChallanRepository(db *sqlx.DB) ChallanRepository {
 }
 
 func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domain.Challan, error) {
-	query := `SELECT id, tenantid, businessservice, challanno, referenceid, description, accountid, source, taxperiodfrom, taxperiodto, applicationstatus FROM eg_echallan WHERE tenantid = ?`
+	q := query.ChallanSearchQuery
 	args := []interface{}{criteria.TenantId}
 
 	if len(criteria.ChallanNo) > 0 {
-		query += ` AND challanno IN (?)`
+		q += ` AND challanno IN (?)`
 		args = append(args, criteria.ChallanNo)
 	}
 	
-	query, args, err := sqlx.In(query, args...)
+	q, args, err := sqlx.In(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build IN query: %w", err)
 	}
-	query = r.db.Rebind(query)
+	q = r.db.Rebind(q)
 
 	if criteria.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET %d", criteria.Offset)
+		q += fmt.Sprintf(" OFFSET %d", criteria.Offset)
 	}
 	if criteria.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d", criteria.Limit)
+		q += fmt.Sprintf(" LIMIT %d", criteria.Limit)
 	} else {
-		query += " LIMIT 50" // Default DIGIT limit
+		q += " LIMIT 50" // Default DIGIT limit
 	}
 
-	var challans []*domain.Challan
-	err = r.db.Select(&challans, query, args...)
+	rows, err := r.db.Queryx(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search query: %w", err)
+	}
+	defer rows.Close()
+
+	var challans []*domain.Challan
+	for rows.Next() {
+		challan, err := rowmapper.MapChallanRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		challans = append(challans, challan)
 	}
 
 	return challans, nil
@@ -55,8 +66,7 @@ func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domai
 
 func (r *challanRepositoryImpl) Count(tenantId string) (int, error) {
 	var count int
-	query := `SELECT COUNT(*) FROM eg_echallan WHERE tenantid = $1`
-	err := r.db.Get(&count, query, tenantId)
+	err := r.db.Get(&count, query.ChallanCountQuery, tenantId)
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute count query: %w", err)
 	}
