@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/segmentio/kafka-go"
 )
 
 type Producer struct {
 	brokers []string
+	writers sync.Map
 }
 
 func NewProducer(brokers []string) *Producer {
@@ -19,12 +21,18 @@ func NewProducer(brokers []string) *Producer {
 
 // Push publishes an event to the DIGIT event bus for the egov-persister to process.
 func (p *Producer) Push(topic string, message interface{}) error {
-	writer := &kafka.Writer{
-		Addr:     kafka.TCP(p.brokers...),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
+	var writer *kafka.Writer
+	
+	if val, ok := p.writers.Load(topic); ok {
+		writer = val.(*kafka.Writer)
+	} else {
+		writer = &kafka.Writer{
+			Addr:     kafka.TCP(p.brokers...),
+			Topic:    topic,
+			Balancer: &kafka.LeastBytes{},
+		}
+		p.writers.Store(topic, writer)
 	}
-	defer writer.Close()
 
 	bytes, err := json.Marshal(message)
 	if err != nil {
