@@ -1,24 +1,32 @@
-# DIGIT eChallan Go Monorepo
+# DIGIT eChallan Ecosystem (Go)
 
-This repository is the official Go-Lang migration of the DIGIT OSS eChallan ecosystem. It replaces the legacy Java Spring Boot services.
+This monorepo contains the modern, high-performance Go microservices for the DIGIT eChallan ecosystem. It replaces the legacy Java Spring Boot services with an idiomatic, Upgraded Go Template (UGT) compliant architecture.
 
-## Services Included
+## Microservices
 
-1. **echallan-calculator**: Stateless Go microservice responsible for generating dynamic demand formulas and computing tax heads. 
-2. **echallan-services**: Core municipal microservice responsible for orchestrating Challan lifecycle events, communicating with PostgreSQL, and managing Kafka asynchronous event queues (DIGIT Persister Pattern).
+| Service | Description | Port |
+|---------|-------------|------|
+| [echallan-services](./echallan-services) | Core module for Challan lifecycle, search, and asynchronous state transitions via Kafka. | `8079` |
+| [echallan-calculator](./echallan-calculator) | Mathematical computation engine for tax estimation, penalty calculations, and billing integration. | `8078` |
 
-## Architecture
+## Architecture Highlights
+- **Strict UGT Compliance**: Enforces explicit separation of domain, repository, service, and transport layers.
+- **High Performance**: Built on `gin-gonic` and `sqlx`.
+- **Event-Driven Resilience**: Utilizes `segmentio/kafka-go` with semaphore-bounded connection pooling to replicate the eGov Persister pattern.
+- **Security-First**: Fully immune to SQL Injection and protected against OOM (Out of Memory) payloads.
 
-Both services are built natively in Go, following the **Upgraded Go Template (UGT)** organizational layout. 
-They each feature explicit dependency injection, distinct boundaries between transport (HTTP/Kafka) and business logic, and dedicated payload validation layers.
+## Local Development (Orchestration)
 
-## Development
+You can spin up the entire DIGIT eChallan ecosystem, along with its backing data stores (Postgres & Kafka), using Docker Compose.
 
-This repository utilizes **Go Workspaces (`go.work`)** to manage multiple modules simultaneously.
-To develop locally:
+```bash
+docker-compose up --build
+```
 
-1. Ensure Go 1.21+ is installed.
-2. Open the root folder (`digit-echallan-go`) in your IDE.
-3. The IDE will automatically read the `go.work` file and resolve dependencies for both `echallan-calculator` and `echallan-services`.
+### Individual Service Setup
+To build or test services individually without Docker, navigate to their respective directories and consult their inner `README.md`.
 
-For specific service build instructions, environment variables, and Docker deployment steps, please read the `README.md` located inside each service folder.
+```bash
+cd echallan-services
+go run cmd/echallan-services/main.go
+```
