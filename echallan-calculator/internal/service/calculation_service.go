@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/models"
+	"github.com/CDPI-HRSS/calci_sp/internal/domain"
 	"github.com/CDPI-HRSS/calci_sp/internal/repository"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
 	"github.com/CDPI-HRSS/calci_sp/internal/validator"
@@ -29,7 +29,7 @@ func NewCalculationService(cfg *configs.Config, utils *util.CalculationUtils, sr
 	}
 }
 
-func (s *CalculationService) GetCalculation(req *models.CalculationReq) ([]models.Calculation, error) {
+func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domain.Calculation, error) {
 	if err := s.validator.ValidateCalculationReq(req); err != nil {
 		return nil, err
 	}
@@ -67,8 +67,8 @@ func (s *CalculationService) GetCalculation(req *models.CalculationReq) ([]model
 	return calculations, nil
 }
 
-func (s *CalculationService) getCalculationInternal(requestInfo *models.RequestInfo, criterias []models.CalulationCriteria) ([]models.Calculation, error) {
-	var calculations []models.Calculation
+func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestInfo, criterias []domain.CalulationCriteria) ([]domain.Calculation, error) {
+	var calculations []domain.Calculation
 
 	for i := range criterias {
 		criteria := &criterias[i]
@@ -86,9 +86,9 @@ func (s *CalculationService) getCalculationInternal(requestInfo *models.RequestI
 			return nil, fmt.Errorf("INVALID APPLICATIONNUMBER: Challan does not exist for application number %s", criteria.ChallanNo)
 		}
 
-		var estimates []models.TaxHeadEstimate
+		var estimates []domain.TaxHeadEstimate
 		for _, amt := range challan.Amount {
-			estimates = append(estimates, models.TaxHeadEstimate{
+			estimates = append(estimates, domain.TaxHeadEstimate{
 				EstimateAmount: amt.Amount,
 				TaxHeadCode:    amt.TaxHeadCode,
 				Category:       "TAX",
@@ -100,7 +100,7 @@ func (s *CalculationService) getCalculationInternal(requestInfo *models.RequestI
 			challanNo = challan.ChallanNo
 		}
 
-		calc := models.Calculation{
+		calc := domain.Calculation{
 			ChallanNo:        challanNo,
 			Challan:          criteria.Challan,
 			TenantId:         criteria.TenantId,
@@ -112,7 +112,7 @@ func (s *CalculationService) getCalculationInternal(requestInfo *models.RequestI
 	return calculations, nil
 }
 
-func (s *CalculationService) CancelBill(requestInfo *models.RequestInfo, challan *models.Challan) {
+func (s *CalculationService) CancelBill(requestInfo *domain.RequestInfo, challan *domain.Challan) {
 	if challan == nil {
 		return
 	}

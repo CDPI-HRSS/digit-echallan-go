@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/models"
+	"github.com/CDPI-HRSS/calci_sp/internal/domain"
 )
 
 type ServiceRequestRepository struct {
@@ -79,14 +79,14 @@ func NewDemandRepository(cfg *configs.Config, srRepo *ServiceRequestRepository) 
 	}
 }
 
-func (dr *DemandRepository) SaveDemand(requestInfo *models.RequestInfo, demands []models.Demand) ([]models.Demand, error) {
+func (dr *DemandRepository) SaveDemand(requestInfo *domain.RequestInfo, demands []domain.Demand) ([]domain.Demand, error) {
 	url := dr.cfg.BillingHost + dr.cfg.DemandCreateEndpoint
-	reqPayload := models.DemandRequest{
+	reqPayload := domain.DemandRequest{
 		RequestInfo: requestInfo,
 		Demands:     demands,
 	}
 
-	var respPayload models.DemandResponse
+	var respPayload domain.DemandResponse
 	err := dr.srRepo.FetchResult(url, reqPayload, &respPayload)
 	if err != nil {
 		return nil, err
@@ -94,14 +94,14 @@ func (dr *DemandRepository) SaveDemand(requestInfo *models.RequestInfo, demands 
 	return respPayload.Demands, nil
 }
 
-func (dr *DemandRepository) UpdateDemand(requestInfo *models.RequestInfo, demands []models.Demand) ([]models.Demand, error) {
+func (dr *DemandRepository) UpdateDemand(requestInfo *domain.RequestInfo, demands []domain.Demand) ([]domain.Demand, error) {
 	url := dr.cfg.BillingHost + dr.cfg.DemandUpdateEndpoint
-	reqPayload := models.DemandRequest{
+	reqPayload := domain.DemandRequest{
 		RequestInfo: requestInfo,
 		Demands:     demands,
 	}
 
-	var respPayload models.DemandResponse
+	var respPayload domain.DemandResponse
 	err := dr.srRepo.FetchResult(url, reqPayload, &respPayload)
 	if err != nil {
 		return nil, err

@@ -3,7 +3,7 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/models"
+	"github.com/CDPI-HRSS/calci_sp/internal/domain"
 	"github.com/CDPI-HRSS/calci_sp/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -26,10 +26,10 @@ func (ctrl *ChallanCalController) RegisterRoutes(r *gin.Engine, contextPath stri
 }
 
 func (ctrl *ChallanCalController) Calculate(c *gin.Context) {
-	var req models.CalculationReq
+	var req domain.CalculationReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorRes{
-			Errors: []models.Error{
+		c.JSON(http.StatusBadRequest, domain.ErrorRes{
+			Errors: []domain.Error{
 				{
 					Code:        "INVALID_REQUEST",
 					Message:     "Failed to parse request JSON",
@@ -42,8 +42,8 @@ func (ctrl *ChallanCalController) Calculate(c *gin.Context) {
 
 	calculations, err := ctrl.calcService.GetCalculation(&req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorRes{
-			Errors: []models.Error{
+		c.JSON(http.StatusBadRequest, domain.ErrorRes{
+			Errors: []domain.Error{
 				{
 					Code:    "CALCULATION_ERROR",
 					Message: err.Error(),
@@ -53,7 +53,7 @@ func (ctrl *ChallanCalController) Calculate(c *gin.Context) {
 		return
 	}
 
-	res := models.CalculationRes{
+	res := domain.CalculationRes{
 		Calculations: calculations,
 	}
 

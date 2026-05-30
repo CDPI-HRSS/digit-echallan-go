@@ -12,7 +12,7 @@ import (
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/postgres"
 	"github.com/CDPI-HRSS/echallan-services/internal/service"
 	httptransport "github.com/CDPI-HRSS/echallan-services/internal/transport/http"
-	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
+	kafkatransport "github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
 	"github.com/CDPI-HRSS/echallan-services/internal/validator"
 )
 
@@ -22,11 +22,10 @@ func main() {
 	// 1. Initialize Kafka Producer
 	producer := kafkatransport.NewProducer([]string{cfg.KafkaBrokers})
 
-	// 2. Initialize PostgreSQL (Mocked connection string for scaffolding)
+	// 2. Initialize PostgreSQL
 	dbUri := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 	
-	// We won't strictly enforce DB connection success on boot for this migration scaffold
 	db, err := sqlx.Connect("postgres", dbUri)
 	if err != nil {
 		log.Printf("Warning: Failed to connect to Postgres: %v", err)

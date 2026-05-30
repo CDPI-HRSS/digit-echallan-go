@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/models"
+	"github.com/CDPI-HRSS/calci_sp/internal/domain"
 	"github.com/CDPI-HRSS/calci_sp/internal/repository"
 )
 
@@ -58,30 +58,30 @@ func (u *CalculationUtils) GetBillGenerateURI(tenantId, consumerCode, businessSe
 	)
 }
 
-func (u *CalculationUtils) GetAuditDetails(by string, isCreate bool) *models.AuditDetails {
+func (u *CalculationUtils) GetAuditDetails(by string, isCreate bool) *domain.AuditDetails {
 	nowMs := time.Now().UnixNano() / int64(time.Millisecond)
 	if isCreate {
-		return &models.AuditDetails{
+		return &domain.AuditDetails{
 			CreatedBy:        by,
 			LastModifiedBy:   by,
 			CreatedTime:      nowMs,
 			LastModifiedTime: nowMs,
 		}
 	}
-	return &models.AuditDetails{
+	return &domain.AuditDetails{
 		LastModifiedBy:   by,
 		LastModifiedTime: nowMs,
 	}
 }
 
-func (u *CalculationUtils) GetChallan(requestInfo *models.RequestInfo, challanNo, tenantId string) (*models.Challan, error) {
+func (u *CalculationUtils) GetChallan(requestInfo *domain.RequestInfo, challanNo, tenantId string) (*domain.Challan, error) {
 	url := u.GetChallanSearchURL(tenantId, challanNo)
 
-	wrapper := models.RequestInfoWrapper{
+	wrapper := domain.RequestInfoWrapper{
 		RequestInfo: requestInfo,
 	}
 
-	var response models.ChallanResponse
+	var response domain.ChallanResponse
 	err := u.srRepo.FetchResult(url, wrapper, &response)
 	if err != nil {
 		return nil, err

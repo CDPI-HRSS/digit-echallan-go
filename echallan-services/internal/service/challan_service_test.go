@@ -5,6 +5,7 @@ import (
 
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
 	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
+	"github.com/CDPI-HRSS/echallan-services/internal/validator"
 )
 
 // MockRepo for testing
@@ -24,7 +25,7 @@ func (m *mockRepo) Count(tenantId string) (int, error) {
 func TestChallanService_Create(t *testing.T) {
 	// Mock producer with empty brokers
 	producer := kafka.NewProducer([]string{})
-	svc := NewChallanService(producer, &mockRepo{})
+	svc := NewChallanService(producer, &mockRepo{}, validator.NewChallanValidator())
 
 	req := &domain.ChallanRequest{
 		RequestInfo: &domain.RequestInfo{
@@ -54,7 +55,7 @@ func TestChallanService_Create(t *testing.T) {
 }
 
 func TestChallanService_Search(t *testing.T) {
-	svc := NewChallanService(nil, &mockRepo{})
+	svc := NewChallanService(nil, &mockRepo{}, validator.NewChallanValidator())
 
 	// Test happy path
 	criteria := domain.SearchCriteria{TenantId: "pb", ChallanNo: []string{"MOCK-123"}}

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/models"
+	"github.com/CDPI-HRSS/calci_sp/internal/domain"
 	"github.com/CDPI-HRSS/calci_sp/internal/repository"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
 )
@@ -30,13 +30,13 @@ func NewDemandService(cfg *configs.Config, utils *util.CalculationUtils, srRepo 
 	}
 }
 
-func (s *DemandService) GenerateDemand(requestInfo *models.RequestInfo, calculations []models.Calculation, businessService string) error {
+func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculations []domain.Calculation, businessService string) error {
 	if len(calculations) == 0 {
 		return nil
 	}
 
-	var createCalculations []models.Calculation
-	var updateCalculations []models.Calculation
+	var createCalculations []domain.Calculation
+	var updateCalculations []domain.Calculation
 
 	tenantId := calculations[0].TenantId
 	var consumerCodes []string
@@ -86,7 +86,7 @@ func (s *DemandService) GenerateDemand(requestInfo *models.RequestInfo, calculat
 
 	for _, calc := range calculations {
 		if calc.Challan != nil && calc.Challan.ApplicationStatus != "CANCELLED" {
-			billCriteria := models.GenerateBillCriteria{
+			billCriteria := domain.GenerateBillCriteria{
 				TenantId:        calc.TenantId,
 				ConsumerCode:    calc.Challan.ChallanNo,
 				BusinessService: businessService,
@@ -101,8 +101,8 @@ func (s *DemandService) GenerateDemand(requestInfo *models.RequestInfo, calculat
 	return nil
 }
 
-func (s *DemandService) createDemand(requestInfo *models.RequestInfo, calculations []models.Calculation) ([]models.Demand, error) {
-	var demands []models.Demand
+func (s *DemandService) createDemand(requestInfo *domain.RequestInfo, calculations []domain.Calculation) ([]domain.Demand, error) {
+	var demands []domain.Demand
 	for _, calc := range calculations {
 		challan := calc.Challan
 		if challan == nil && calc.ChallanNo != "" {
@@ -120,14 +120,14 @@ func (s *DemandService) createDemand(requestInfo *models.RequestInfo, calculatio
 		tenantId := calc.TenantId
 		consumerCode := challan.ChallanNo
 
-		var payer *models.User
+		var payer *domain.User
 		if challan.Citizen != nil {
 			payer = challan.Citizen.ToCommonUser()
 		}
 
-		var demandDetails []models.DemandDetail
+		var demandDetails []domain.DemandDetail
 		for _, estimate := range calc.TaxHeadEstimates {
-			demandDetails = append(demandDetails, models.DemandDetail{
+			demandDetails = append(demandDetails, domain.DemandDetail{
 				TaxAmount:         estimate.EstimateAmount,
 				TaxHeadMasterCode: estimate.TaxHeadCode,
 				CollectionAmount:  0.0,
@@ -141,7 +141,7 @@ func (s *DemandService) createDemand(requestInfo *models.RequestInfo, calculatio
 
 		s.addRoundOffTaxHead(calc.TenantId, &demandDetails, businessService)
 
-		singleDemand := models.Demand{
+		singleDemand := domain.Demand{
 			ConsumerCode:         consumerCode,
 			DemandDetails:        demandDetails,
 			Payer:                payer,
@@ -159,8 +159,8 @@ func (s *DemandService) createDemand(requestInfo *models.RequestInfo, calculatio
 	return s.demandRepo.SaveDemand(requestInfo, demands)
 }
 
-func (s *DemandService) updateDemand(requestInfo *models.RequestInfo, calculations []models.Calculation, businessService string) ([]models.Demand, error) {
-	var demands []models.Demand
+func (s *DemandService) updateDemand(requestInfo *domain.RequestInfo, calculations []domain.Calculation, businessService string) ([]domain.Demand, error) {
+	var demands []domain.Demand
 	for _, calc := range calculations {
 		challan := calc.Challan
 		if challan == nil {
@@ -189,7 +189,7 @@ func (s *DemandService) updateDemand(requestInfo *models.RequestInfo, calculatio
 	return s.demandRepo.UpdateDemand(requestInfo, demands)
 }
 
-func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, requestInfo *models.RequestInfo, businessService string) ([]models.Demand, error) {
+func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, requestInfo *domain.RequestInfo, businessService string) ([]domain.Demand, error) {
 	if len(consumerCodes) == 0 {
 		return nil, nil
 	}
@@ -197,11 +197,11 @@ func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, re
 	codesStr := strings.Join(consumerCodes, ",")
 	url := s.utils.GetDemandSearchURL(tenantId, businessService, codesStr)
 
-	wrapper := models.RequestInfoWrapper{
+	wrapper := domain.RequestInfoWrapper{
 		RequestInfo: requestInfo,
 	}
 
-	var response models.DemandResponse
+	var response domain.DemandResponse
 	err := s.srRepo.FetchResult(url, wrapper, &response)
 	if err != nil {
 		return nil, err
@@ -210,7 +210,7 @@ func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, re
 	return response.Demands, nil
 }
 
-func (s *DemandService) GenerateBill(requestInfo *models.RequestInfo, billCriteria models.GenerateBillCriteria) (*models.BillResponse, error) {
+func (s *DemandService) GenerateBill(requestInfo *domain.RequestInfo, billCriteria domain.GenerateBillCriteria) (*domain.BillResponse, error) {
 	demands, err := s.SearchDemand(billCriteria.TenantId, []string{billCriteria.ConsumerCode}, requestInfo, billCriteria.BusinessService)
 	if err != nil {
 		return nil, err
@@ -222,11 +222,11 @@ func (s *DemandService) GenerateBill(requestInfo *models.RequestInfo, billCriter
 
 	url := s.utils.GetBillGenerateURI(billCriteria.TenantId, billCriteria.ConsumerCode, billCriteria.BusinessService)
 
-	wrapper := models.RequestInfoWrapper{
+	wrapper := domain.RequestInfoWrapper{
 		RequestInfo: requestInfo,
 	}
 
-	var response models.BillResponse
+	var response domain.BillResponse
 	err = s.srRepo.FetchResult(url, wrapper, &response)
 	if err != nil {
 		return nil, err
@@ -235,9 +235,9 @@ func (s *DemandService) GenerateBill(requestInfo *models.RequestInfo, billCriter
 	return &response, nil
 }
 
-func (s *DemandService) getUpdatedDemandDetails(calculation models.Calculation, demandDetails []models.DemandDetail) []models.DemandDetail {
-	var newDemandDetails []models.DemandDetail
-	taxHeadToDemandDetails := make(map[string][]models.DemandDetail)
+func (s *DemandService) getUpdatedDemandDetails(calculation domain.Calculation, demandDetails []domain.DemandDetail) []domain.DemandDetail {
+	var newDemandDetails []domain.DemandDetail
+	taxHeadToDemandDetails := make(map[string][]domain.DemandDetail)
 
 	for _, detail := range demandDetails {
 		taxHeadToDemandDetails[detail.TaxHeadMasterCode] = append(taxHeadToDemandDetails[detail.TaxHeadMasterCode], detail)
@@ -246,7 +246,7 @@ func (s *DemandService) getUpdatedDemandDetails(calculation models.Calculation, 
 	for _, estimate := range calculation.TaxHeadEstimates {
 		details, exists := taxHeadToDemandDetails[estimate.TaxHeadCode]
 		if !exists {
-			newDemandDetails = append(newDemandDetails, models.DemandDetail{
+			newDemandDetails = append(newDemandDetails, domain.DemandDetail{
 				TaxAmount:         estimate.EstimateAmount,
 				TaxHeadMasterCode: estimate.TaxHeadCode,
 				TenantId:          calculation.TenantId,
@@ -259,7 +259,7 @@ func (s *DemandService) getUpdatedDemandDetails(calculation models.Calculation, 
 			}
 			diffInTaxAmount := estimate.EstimateAmount - total
 			if diffInTaxAmount != 0 {
-				newDemandDetails = append(newDemandDetails, models.DemandDetail{
+				newDemandDetails = append(newDemandDetails, domain.DemandDetail{
 					TaxAmount:         diffInTaxAmount,
 					TaxHeadMasterCode: estimate.TaxHeadCode,
 					TenantId:          calculation.TenantId,
@@ -269,16 +269,16 @@ func (s *DemandService) getUpdatedDemandDetails(calculation models.Calculation, 
 		}
 	}
 
-	combined := append([]models.DemandDetail(nil), demandDetails...)
+	combined := append([]domain.DemandDetail(nil), demandDetails...)
 	combined = append(combined, newDemandDetails...)
 
 	s.addRoundOffTaxHead(calculation.TenantId, &combined, calculation.Challan.BusinessService)
 	return combined
 }
 
-func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]models.DemandDetail, businessService string) {
+func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]domain.DemandDetail, businessService string) {
 	var totalTax float64
-	var prevRoundOffDemandDetail *models.DemandDetail
+	var prevRoundOffDemandDetail *domain.DemandDetail
 
 	roundOffTaxHeadCode := businessService + MDMSRoundOffTaxHead
 
@@ -299,7 +299,7 @@ func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]mod
 	}
 
 	if roundOff != 0 {
-		roundOffDemandDetail := models.DemandDetail{
+		roundOffDemandDetail := domain.DemandDetail{
 			TaxAmount:         roundOff,
 			TaxHeadMasterCode: roundOffTaxHeadCode,
 			TenantId:          tenantId,
