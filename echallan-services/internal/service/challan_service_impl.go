@@ -5,94 +5,195 @@ import (
 	"time"
 
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
+
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/postgres"
+	"github.com/CDPI-HRSS/echallan-services/internal/repository/http"
 	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
 	"github.com/CDPI-HRSS/echallan-services/internal/validator"
+	"github.com/google/uuid"
 )
 
 type challanServiceImpl struct {
+	userRepo  *http.UserRepository
+	notifSvc  *NotificationService
+	idgenRepo *http.IdGenRepository
+	billRepo  *http.BillingRepository
 	producer  *kafka.Producer
 	repo      postgres.ChallanRepository
 	validator *validator.ChallanValidator
 }
 
-func NewChallanService(producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator) ChallanService {
+func NewChallanService(producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator, userRepo *http.UserRepository, notifSvc *NotificationService, idgenRepo *http.IdGenRepository, billRepo *http.BillingRepository) ChallanService {
 	return &challanServiceImpl{
 		producer:  producer,
 		repo:      repo,
+		userRepo:  userRepo,
+		notifSvc:  notifSvc,
+		idgenRepo: idgenRepo,
+		billRepo:  billRepo,
 		validator: val,
 	}
 }
 
 func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan, error) {
-	// 1. Validation Logic
 	if err := s.validator.ValidateCreateRequest(req); err != nil {
 		return nil, err
 	}
-	// This would typically involve validating against MDMS Master Data
+
+	// Enrichment
+	req.Challan.Id = uuid.New().String()
+	if req.Challan.Address != nil {
+		req.Challan.Address.Id = uuid.New().String()
+	}
+	req.Challan.ApplicationStatus = "ACTIVE"
 	
-	// 2. ID Generation Logic
-	// In the real DIGIT setup, this makes an HTTP call to egov-idgen. 
-	// Scaffolded here for structural integrity.
-	req.Challan.ChallanNo = fmt.Sprintf("CH-%d", time.Now().Unix())
-	req.Challan.Id = fmt.Sprintf("UUID-%d", time.Now().UnixNano())
+	// IDGen Call
+	ids, err := s.idgenRepo.GenerateId(req.RequestInfo, req.Challan.TenantId, "echallan.number", "CH-[cy:yyyy-MM-dd]-[SEQ_EG_CHALLAN_NUM]", 1)
+	if err == nil && len(ids) > 0 {
+		req.Challan.ChallanNo = ids[0]
+	} else {
+		// Fallback if IDGen is down
+		req.Challan.ChallanNo = fmt.Sprintf("CH-%d", time.Now().UnixNano())
+	}
 	
-	// 3. Audit Details Enrichment
-	var uuid string
+	// User Creation / UUID assignment
+	if req.Challan.Citizen != nil {
+		createdUser, err := s.userRepo.CreateUser(req.RequestInfo, req.Challan.Citizen)
+		if err == nil && createdUser != nil {
+			req.Challan.Citizen.Uuid = createdUser.Uuid
+			req.Challan.Citizen.Id = createdUser.Id
+			req.Challan.AccountId = createdUser.Uuid
+		} else {
+			req.Challan.AccountId = req.Challan.Citizen.Uuid
+		}
+	} else if req.Challan.AccountId == "" && req.RequestInfo != nil && req.RequestInfo.UserInfo != nil {
+		req.Challan.AccountId = req.RequestInfo.UserInfo.Uuid
+	}
+
+	// Audit Details
+	var reqUuid string
 	if req.RequestInfo != nil && req.RequestInfo.UserInfo != nil {
-		uuid = req.RequestInfo.UserInfo.Uuid
+		reqUuid = req.RequestInfo.UserInfo.Uuid
 	}
 	req.Challan.AuditDetails = &domain.AuditDetails{
-		CreatedBy:        uuid,
-		LastModifiedBy:   uuid,
+		CreatedBy:        reqUuid,
+		LastModifiedBy:   reqUuid,
 		CreatedTime:      time.Now().UnixMilli(),
 		LastModifiedTime: time.Now().UnixMilli(),
 	}
 
-	// 4. DIGIT Persister Pattern: Push to Kafka instead of direct DB insert
-	err := s.producer.Push("save-challan", req)
+	// Calculation Call
+	err = s.billRepo.GenerateBill(req.RequestInfo, req.Challan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate calculation/demand: %w", err)
+	}
+
+	err = s.producer.Push("save-challan", req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to persist challan: %w", err)
 	}
+
+	go s.notifSvc.SendNotifications(req.RequestInfo, req.Challan, "CREATED")
 
 	return req.Challan, nil
 }
 
 func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan, error) {
-	// 1. Validation and fetch existing (omitted)
-	if err := s.validator.ValidateUpdateRequest(req); err != nil {
+	// 1. Validation
+	searchCriteria := domain.SearchCriteria{
+		TenantId:  req.Challan.TenantId,
+		ChallanNo: req.Challan.ChallanNo,
+	}
+	searchResult, _, _ := s.Search(searchCriteria, req.RequestInfo)
+
+	if err := s.validator.ValidateUpdateRequest(req, searchResult); err != nil {
 		return nil, err
 	}
 
-	// 2. Audit Details Enrichment
-	var uuid string
+	// 2. FileStore Soft-Delete Enrichment
+	if req.Challan.ApplicationStatus == "CANCELLED" && len(searchResult) > 0 {
+		searchChallan := searchResult[0]
+		if searchChallan.Filestoreid != "" {
+			req.Challan.Filestoreid = "_INACTIVE_" // Custom flag for filestore consumer to delete or ignore
+		}
+	}
+
+	// 3. Audit Details Enrichment
+	var reqUuid string
 	if req.RequestInfo != nil && req.RequestInfo.UserInfo != nil {
-		uuid = req.RequestInfo.UserInfo.Uuid
+		reqUuid = req.RequestInfo.UserInfo.Uuid
 	}
 	req.Challan.AuditDetails = &domain.AuditDetails{
-		LastModifiedBy:   uuid,
+		LastModifiedBy:   reqUuid,
 		LastModifiedTime: time.Now().UnixMilli(),
 	}
 
-	// 3. DIGIT Persister Pattern: Push to Kafka for egov-persister
-	err := s.producer.Push("update-challan", req)
+	// 4. Calculation Call
+	err := s.billRepo.GenerateBill(req.RequestInfo, req.Challan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update calculation/demand: %w", err)
+	}
+
+	err = s.producer.Push("update-challan", req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to persist challan update: %w", err)
 	}
 
+	go s.notifSvc.SendNotifications(req.RequestInfo, req.Challan, "UPDATED")
+
 	return req.Challan, nil
 }
 
-func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, error) {
-	return s.repo.Search(criteria)
+func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, int, error) {
+	// RBAC logic
+	if reqInfo != nil && reqInfo.UserInfo != nil && reqInfo.UserInfo.Type != "EMPLOYEE" {
+		criteria.MobileNumber = reqInfo.UserInfo.MobileNumber
+	}
+
+	challans, count, err := s.repo.Search(criteria)
+	if err != nil || len(challans) == 0 {
+		return challans, count, err
+	}
+
+	var uuids []string
+	uuidMap := make(map[string]bool)
+	for _, c := range challans {
+		if c.AccountId != "" && !uuidMap[c.AccountId] {
+			uuidMap[c.AccountId] = true
+			uuids = append(uuids, c.AccountId)
+		}
+	}
+
+	users, _ := s.userRepo.SearchUsers(reqInfo, uuids)
+	userObjMap := make(map[string]*domain.UserInfo)
+	for i := range users {
+		userObjMap[users[i].Uuid] = &users[i]
+	}
+
+	for _, c := range challans {
+		if user, ok := userObjMap[c.AccountId]; ok {
+			c.Citizen = user
+		}
+	}
+
+	return challans, count, nil
 }
 
 func (s *challanServiceImpl) Count(tenantId string, reqInfo *domain.RequestInfo) (map[string]interface{}, error) {
-	count, err := s.repo.Count(tenantId)
+	// Dynamic Dashboard Data logic
+	countMap, err := s.repo.Count(tenantId)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
-		"totalCount": count,
-	}, nil
+	
+	res := make(map[string]interface{})
+	for k, v := range countMap {
+		res[k] = v
+	}
+	
+	// Simulated Dynamic Data
+	res["totalServices"] = countMap["totalChallans"]
+	res["totalCollection"] = countMap["totalAmount"]
+	
+	return res, nil
 }

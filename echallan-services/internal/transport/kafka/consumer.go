@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 )
 
 type PaymentHandler interface {
@@ -13,25 +13,48 @@ type PaymentHandler interface {
 	ProcessCancel(record map[string]interface{}) error
 }
 
+type FilestoreHandler interface {
+	ProcessPdfGenerated(payload []byte) error
+}
+
+type ChallanHandler interface {
+	ProcessSaveChallan(payload map[string]interface{}) error
+	ProcessUpdateChallan(payload map[string]interface{}) error
+}
+
 type Consumer struct {
 	brokers      []string
 	paymentSvc   PaymentHandler
+	filestoreSvc FilestoreHandler
+	challanSvc   ChallanHandler
 }
 
-func NewConsumer(brokers []string, paymentSvc PaymentHandler) *Consumer {
+func NewConsumer(brokers []string, paymentSvc PaymentHandler, filestoreSvc FilestoreHandler, challanSvc ChallanHandler) *Consumer {
 	return &Consumer{
-		brokers:    brokers,
-		paymentSvc: paymentSvc,
+		brokers:      brokers,
+		paymentSvc:   paymentSvc,
+		filestoreSvc: filestoreSvc,
+		challanSvc:   challanSvc,
 	}
 }
 
 func (c *Consumer) StartListening() {
-	go c.listenTopic("egov.collection.receipt-create", c.handleReceiptCreate)
-	go c.listenTopic("egov.collection.receipt-cancel", c.handleReceiptCancel)
+	go c.listenTopic("egov.collection.receipt-create", c.handleReceiptCreate, false)
+	go c.listenTopic("egov.collection.receipt-cancel", c.handleReceiptCancel, false)
+	
+	if c.filestoreSvc != nil {
+		go c.listenTopic("pdf-generated", c.handlePdfGenerated, true)
+	}
+	
+	if c.challanSvc != nil {
+		go c.listenTopic("save-challan", c.handleSaveChallan, false)
+		go c.listenTopic("update-challan", c.handleUpdateChallan, false)
+	}
 }
 
-func (c *Consumer) listenTopic(topic string, handler func(map[string]interface{})) {
-	reader := kafka.NewReader(kafka.ReaderConfig{
+func (c *Consumer) listenTopic(topic string, handler func([]byte, map[string]interface{}), passRaw bool) {
+	ctx := context.Background() // TODO: pass in global shutdown context
+	reader := kafkago.NewReader(kafkago.ReaderConfig{
 		Brokers:  c.brokers,
 		GroupID:  "echallan-services-group",
 		Topic:    topic,
@@ -42,39 +65,57 @@ func (c *Consumer) listenTopic(topic string, handler func(map[string]interface{}
 
 	log.Printf("Started listening to Kafka topic: %s", topic)
 	
-	// Bounded concurrency (semaphore)
 	sem := make(chan struct{}, 100)
 
 	for {
-		m, err := reader.ReadMessage(context.Background())
+		m, err := reader.ReadMessage(ctx)
 		if err != nil {
 			log.Printf("Error reading message from topic %s: %v", topic, err)
 			continue
 		}
 
 		var record map[string]interface{}
-		if err := json.Unmarshal(m.Value, &record); err != nil {
-			log.Printf("Error unmarshalling message from topic %s: %v", topic, err)
-			continue
+		if !passRaw {
+			if err := json.Unmarshal(m.Value, &record); err != nil {
+				log.Printf("Error unmarshalling message from topic %s: %v", topic, err)
+				continue
+			}
 		}
 
-		// Process async with bounded concurrency
 		sem <- struct{}{}
-		go func(r map[string]interface{}) {
+		go func(raw []byte, parsed map[string]interface{}) {
 			defer func() { <-sem }()
-			handler(r)
-		}(record)
+			handler(raw, parsed)
+		}(m.Value, record)
 	}
 }
 
-func (c *Consumer) handleReceiptCreate(record map[string]interface{}) {
+func (c *Consumer) handleReceiptCreate(raw []byte, record map[string]interface{}) {
 	if err := c.paymentSvc.ProcessPayment(record); err != nil {
 		log.Printf("Failed to process payment receipt: %v", err)
 	}
 }
 
-func (c *Consumer) handleReceiptCancel(record map[string]interface{}) {
+func (c *Consumer) handleReceiptCancel(raw []byte, record map[string]interface{}) {
 	if err := c.paymentSvc.ProcessCancel(record); err != nil {
 		log.Printf("Failed to process cancelled receipt: %v", err)
+	}
+}
+
+func (c *Consumer) handlePdfGenerated(raw []byte, record map[string]interface{}) {
+	if err := c.filestoreSvc.ProcessPdfGenerated(raw); err != nil {
+		log.Printf("Failed to process pdf generated: %v", err)
+	}
+}
+
+func (c *Consumer) handleSaveChallan(raw []byte, record map[string]interface{}) {
+	if err := c.challanSvc.ProcessSaveChallan(record); err != nil {
+		log.Printf("Failed to process save challan event: %v", err)
+	}
+}
+
+func (c *Consumer) handleUpdateChallan(raw []byte, record map[string]interface{}) {
+	if err := c.challanSvc.ProcessUpdateChallan(record); err != nil {
+		log.Printf("Failed to process update challan event: %v", err)
 	}
 }
