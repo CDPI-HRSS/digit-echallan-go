@@ -11,21 +11,20 @@ import (
 // MockRepo for testing
 type mockRepo struct{}
 
-func (m *mockRepo) Search(criteria domain.SearchCriteria) ([]*domain.Challan, error) {
-	if len(criteria.ChallanNo) > 0 && criteria.ChallanNo[0] == "MOCK-123" {
-		return []*domain.Challan{{ChallanNo: "MOCK-123", TenantId: criteria.TenantId}}, nil
+func (m *mockRepo) Search(criteria domain.SearchCriteria) ([]*domain.Challan, int, error) {
+	if criteria.ChallanNo == "MOCK-123" {
+		return []*domain.Challan{{ChallanNo: "MOCK-123", TenantId: criteria.TenantId}}, 1, nil
 	}
-	return []*domain.Challan{}, nil
+	return []*domain.Challan{}, 0, nil
 }
 
-func (m *mockRepo) Count(tenantId string) (int, error) {
-	return 1, nil
+func (m *mockRepo) Count(tenantId string) (map[string]int, error) {
+	return map[string]int{"TOTAL": 1}, nil
 }
 
 func TestChallanService_Create(t *testing.T) {
-	// Mock producer with empty brokers
 	producer := kafka.NewProducer([]string{})
-	svc := NewChallanService(producer, &mockRepo{}, validator.NewChallanValidator())
+	svc := NewChallanService(producer, &mockRepo{}, validator.NewChallanValidator(nil, nil), nil, nil, nil, nil)
 
 	req := &domain.ChallanRequest{
 		RequestInfo: &domain.RequestInfo{
@@ -36,10 +35,8 @@ func TestChallanService_Create(t *testing.T) {
 		},
 	}
 
-	// Attempt create (this will fail pushing to kafka because broker is empty, but logic executes)
 	challan, err := svc.Create(req)
 	
-	// We expect a Kafka error here due to mock, but we want to verify struct enrichment
 	if challan != nil {
 		if challan.ChallanNo == "" {
 			t.Errorf("Expected ChallanNo to be generated")
@@ -55,11 +52,11 @@ func TestChallanService_Create(t *testing.T) {
 }
 
 func TestChallanService_Search(t *testing.T) {
-	svc := NewChallanService(nil, &mockRepo{}, validator.NewChallanValidator())
+	svc := NewChallanService(nil, &mockRepo{}, validator.NewChallanValidator(nil, nil), nil, nil, nil, nil)
 
 	// Test happy path
-	criteria := domain.SearchCriteria{TenantId: "pb", ChallanNo: []string{"MOCK-123"}}
-	res, err := svc.Search(criteria, nil)
+	criteria := domain.SearchCriteria{TenantId: "pb", ChallanNo: "MOCK-123"}
+	res, _, err := svc.Search(criteria, nil)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -68,8 +65,8 @@ func TestChallanService_Search(t *testing.T) {
 	}
 
 	// Test empty
-	criteria2 := domain.SearchCriteria{TenantId: "pb", ChallanNo: []string{"INVALID"}}
-	res2, err := svc.Search(criteria2, nil)
+	criteria2 := domain.SearchCriteria{TenantId: "pb", ChallanNo: "INVALID"}
+	res2, _, err := svc.Search(criteria2, nil)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

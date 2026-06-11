@@ -22,6 +22,7 @@ func (ctrl *ChallanCalController) RegisterRoutes(r *gin.Engine, contextPath stri
 	group := r.Group(contextPath + "/v1")
 	{
 		group.POST("/_calculate", ctrl.Calculate)
+		group.POST("/_calculate/:servicename", ctrl.Calculate)
 	}
 }
 
@@ -59,4 +60,3 @@ func (ctrl *ChallanCalController) Calculate(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
-

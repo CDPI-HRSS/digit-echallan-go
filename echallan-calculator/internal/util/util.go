@@ -7,15 +7,15 @@ import (
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
 	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/repository"
+	"github.com/CDPI-HRSS/calci_sp/internal/repository/http"
 )
 
 type CalculationUtils struct {
 	cfg    *configs.Config
-	srRepo *repository.ServiceRequestRepository
+	srRepo *http.ServiceRequestRepository
 }
 
-func NewCalculationUtils(cfg *configs.Config, srRepo *repository.ServiceRequestRepository) *CalculationUtils {
+func NewCalculationUtils(cfg *configs.Config, srRepo *http.ServiceRequestRepository) *CalculationUtils {
 	return &CalculationUtils{
 		cfg:    cfg,
 		srRepo: srRepo,

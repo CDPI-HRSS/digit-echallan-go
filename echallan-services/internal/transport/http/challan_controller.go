@@ -6,14 +6,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
 	"github.com/CDPI-HRSS/echallan-services/internal/service"
+	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
 )
 
 type ChallanController struct {
 	challanService service.ChallanService
+	producer *kafka.Producer
 }
 
-func NewChallanController(service service.ChallanService) *ChallanController {
-	return &ChallanController{challanService: service}
+func NewChallanController(service service.ChallanService, producer *kafka.Producer) *ChallanController {
+	return &ChallanController{challanService: service, producer: producer}
 }
 
 func (cc *ChallanController) RegisterRoutes(router *gin.Engine) {
@@ -23,6 +25,7 @@ func (cc *ChallanController) RegisterRoutes(router *gin.Engine) {
 		v1.POST("/_search", cc.Search)
 		v1.POST("/_update", cc.Update)
 		v1.POST("/_count", cc.Count)
+		v1.POST("/_test", cc.Test)
 	}
 }
 
@@ -71,7 +74,15 @@ func (cc *ChallanController) Search(c *gin.Context) {
 		return
 	}
 
-	challans, err := cc.challanService.Search(criteria, req.RequestInfo)
+	if criteria.TenantId == "" {
+		c.JSON(http.StatusBadRequest, domain.Error{
+			Code:    "INVALID_SEARCH",
+			Message: "tenantId is mandatory for searching",
+		})
+		return
+	}
+
+	challans, totalCount, err := cc.challanService.Search(criteria, req.RequestInfo)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
 			Code:    "SEARCH_ERROR",
@@ -83,7 +94,7 @@ func (cc *ChallanController) Search(c *gin.Context) {
 	res := domain.ChallanResponse{
 		ResponseInfo: createResponseInfo(req.RequestInfo, "200 OK"),
 		Challans:     challans,
-		TotalCount:   len(challans),
+		TotalCount:   totalCount,
 	}
 	c.JSON(http.StatusOK, res)
 }
@@ -148,4 +159,17 @@ func createResponseInfo(reqInfo *domain.RequestInfo, status string) *domain.Resp
 		MsgId:  reqInfo.MsgId,
 		Status: status,
 	}
+}
+
+func (cc *ChallanController) Test(c *gin.Context) {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	if err := cc.producer.Push("update-challan", req); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to push to Kafka"})
+		return
+	}
+	c.JSON(200, gin.H{"message": "Successfully pushed to update-challan topic"})
 }

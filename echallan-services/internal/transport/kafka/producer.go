@@ -7,7 +7,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 )
 
 type Producer struct {
@@ -21,15 +21,16 @@ func NewProducer(brokers []string) *Producer {
 
 // Push publishes an event to the DIGIT event bus for the egov-persister to process.
 func (p *Producer) Push(topic string, message interface{}) error {
-	var writer *kafka.Writer
+	ctx := context.Background() // TODO: propagate from caller for true context cancellation
+	var writer *kafkago.Writer
 	
 	if val, ok := p.writers.Load(topic); ok {
-		writer = val.(*kafka.Writer)
+		writer = val.(*kafkago.Writer)
 	} else {
-		writer = &kafka.Writer{
-			Addr:     kafka.TCP(p.brokers...),
+		writer = &kafkago.Writer{
+			Addr:     kafkago.TCP(p.brokers...),
 			Topic:    topic,
-			Balancer: &kafka.LeastBytes{},
+			Balancer: &kafkago.LeastBytes{},
 		}
 		p.writers.Store(topic, writer)
 	}
@@ -39,8 +40,8 @@ func (p *Producer) Push(topic string, message interface{}) error {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	err = writer.WriteMessages(context.Background(),
-		kafka.Message{
+	err = writer.WriteMessages(ctx,
+		kafkago.Message{
 			Value: bytes,
 		},
 	)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
 	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/repository"
+	"github.com/CDPI-HRSS/calci_sp/internal/repository/http"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
 	"github.com/CDPI-HRSS/calci_sp/internal/validator"
 )
@@ -14,12 +14,12 @@ import (
 type CalculationService struct {
 	cfg           *configs.Config
 	utils         *util.CalculationUtils
-	srRepo        *repository.ServiceRequestRepository
+	srRepo        *http.ServiceRequestRepository
 	demandService *DemandService
 	validator     *validator.CalculatorValidator
 }
 
-func NewCalculationService(cfg *configs.Config, utils *util.CalculationUtils, srRepo *repository.ServiceRequestRepository, demandService *DemandService, val *validator.CalculatorValidator) *CalculationService {
+func NewCalculationService(cfg *configs.Config, utils *util.CalculationUtils, srRepo *http.ServiceRequestRepository, demandService *DemandService, val *validator.CalculatorValidator) *CalculationService {
 	return &CalculationService{
 		cfg:           cfg,
 		utils:         utils,
@@ -91,7 +91,7 @@ func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestI
 			estimates = append(estimates, domain.TaxHeadEstimate{
 				EstimateAmount: amt.Amount,
 				TaxHeadCode:    amt.TaxHeadCode,
-				Category:       "TAX",
+				
 			})
 		}
 

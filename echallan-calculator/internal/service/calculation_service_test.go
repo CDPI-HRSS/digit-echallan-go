@@ -9,9 +9,6 @@ func TestCalculationService_Calculate(t *testing.T) {
 	t.Log("Validating CalculationService structural integrity...")
 	// We would normally mock the repository here and test math logic
 	// but this ensures the test runner passes successfully.
-	if 1 != 1 {
-		t.Errorf("Math is broken")
-	}
 }
 
 func TestDemandService_GenerateDemand(t *testing.T) {

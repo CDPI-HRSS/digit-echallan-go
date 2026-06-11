@@ -10,8 +10,8 @@ import (
 )
 
 type ChallanRepository interface {
-	Search(criteria domain.SearchCriteria) ([]*domain.Challan, error)
-	Count(tenantId string) (int, error)
+	Search(criteria domain.SearchCriteria) ([]*domain.Challan, int, error)
+	Count(tenantId string) (map[string]int, error)
 }
 
 type challanRepositoryImpl struct {
@@ -22,20 +22,22 @@ func NewChallanRepository(db *sqlx.DB) ChallanRepository {
 	return &challanRepositoryImpl{db: db}
 }
 
-func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domain.Challan, error) {
-	q := query.ChallanSearchQuery
-	args := []interface{}{criteria.TenantId}
-
-	if len(criteria.ChallanNo) > 0 {
-		q += ` AND challanno IN (?)`
-		args = append(args, criteria.ChallanNo)
-	}
+func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domain.Challan, int, error) {
+	q, args := query.BuildSearchQuery(criteria)
 	
 	q, args, err := sqlx.In(q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build IN query: %w", err)
+		return nil, 0, fmt.Errorf("failed to build IN query: %w", err)
 	}
+
 	q = r.db.Rebind(q)
+
+	countQuery := "SELECT COUNT(*) FROM (" + q + ") as sub"
+	var totalCount int
+	if err := r.db.Get(&totalCount, countQuery, args...); err != nil {
+		return nil, 0, fmt.Errorf("failed to execute absolute count query: %w", err)
+	}
+
 
 	if criteria.Offset > 0 {
 		q += fmt.Sprintf(" OFFSET %d", criteria.Offset)
@@ -48,7 +50,7 @@ func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domai
 
 	rows, err := r.db.Queryx(q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute search query: %w", err)
+		return nil, 0, fmt.Errorf("failed to execute search query: %w", err)
 	}
 	defer rows.Close()
 
@@ -56,19 +58,33 @@ func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domai
 	for rows.Next() {
 		challan, err := rowmapper.MapChallanRow(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		challans = append(challans, challan)
 	}
 
-	return challans, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return challans, totalCount, nil
 }
 
-func (r *challanRepositoryImpl) Count(tenantId string) (int, error) {
-	var count int
-	err := r.db.Get(&count, query.ChallanCountQuery, tenantId)
-	if err != nil {
-		return 0, fmt.Errorf("failed to execute count query: %w", err)
+func (r *challanRepositoryImpl) Count(tenantId string) (map[string]int, error) {
+	var results []struct {
+		Status string `db:"applicationstatus"`
+		Count  int    `db:"count"`
 	}
-	return count, nil
+	
+	err := r.db.Select(&results, query.ChallanCountQuery, tenantId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute count query: %w", err)
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Status] = res.Count
+	}
+	
+	return counts, nil
 }

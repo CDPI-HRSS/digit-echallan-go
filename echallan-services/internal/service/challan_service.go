@@ -6,7 +6,7 @@ import (
 
 type ChallanService interface {
 	Create(req *domain.ChallanRequest) (*domain.Challan, error)
-	Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, error)
+	Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, int, error)
 	Update(req *domain.ChallanRequest) (*domain.Challan, error)
 	Count(tenantId string, reqInfo *domain.RequestInfo) (map[string]interface{}, error)
 }

@@ -15,20 +15,20 @@ type mockChallanService struct{}
 func (m *mockChallanService) Create(req *domain.ChallanRequest) (*domain.Challan, error) {
 	return req.Challan, nil
 }
-func (m *mockChallanService) Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, error) {
-	return []*domain.Challan{}, nil
+func (m *mockChallanService) Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, int, error) {
+	return []*domain.Challan{}, 0, nil
 }
 func (m *mockChallanService) Update(req *domain.ChallanRequest) (*domain.Challan, error) {
 	return req.Challan, nil
 }
 func (m *mockChallanService) Count(tenantId string, reqInfo *domain.RequestInfo) (map[string]interface{}, error) {
-	return map[string]interface{}{"totalCount": 0}, nil
+	return map[string]interface{}{"TOTAL": 0}, nil
 }
 
 func setupRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	ctrl := NewChallanController(&mockChallanService{})
+	ctrl := NewChallanController(&mockChallanService{}, nil)
 	ctrl.RegisterRoutes(r)
 	return r
 }

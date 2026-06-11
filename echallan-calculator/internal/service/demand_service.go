@@ -3,13 +3,13 @@ package service
 import (
 	"fmt"
 	"log"
-	"math"
 	"strings"
 
 	"github.com/CDPI-HRSS/calci_sp/configs"
 	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/repository"
+	"github.com/CDPI-HRSS/calci_sp/internal/repository/http"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
+	"github.com/shopspring/decimal"
 )
 
 const MDMSRoundOffTaxHead = "_ROUNDOFF"
@@ -17,11 +17,11 @@ const MDMSRoundOffTaxHead = "_ROUNDOFF"
 type DemandService struct {
 	cfg        *configs.Config
 	utils      *util.CalculationUtils
-	srRepo     *repository.ServiceRequestRepository
-	demandRepo *repository.DemandRepository
+	srRepo     *http.ServiceRequestRepository
+	demandRepo *http.DemandRepository
 }
 
-func NewDemandService(cfg *configs.Config, utils *util.CalculationUtils, srRepo *repository.ServiceRequestRepository, demandRepo *repository.DemandRepository) *DemandService {
+func NewDemandService(cfg *configs.Config, utils *util.CalculationUtils, srRepo *http.ServiceRequestRepository, demandRepo *http.DemandRepository) *DemandService {
 	return &DemandService{
 		cfg:        cfg,
 		utils:      utils,
@@ -93,7 +93,8 @@ func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculat
 			}
 			_, err := s.GenerateBill(requestInfo, billCriteria)
 			if err != nil {
-				log.Printf("Warning: failed to generate bill for %s (continuing): %v\n", calc.Challan.ChallanNo, err)
+				log.Printf("Warning: failed to generate bill for %s: %v\n", calc.Challan.ChallanNo, err)
+				return fmt.Errorf("failed to generate bill: %w", err)
 			}
 		}
 	}
@@ -253,14 +254,16 @@ func (s *DemandService) getUpdatedDemandDetails(calculation domain.Calculation, 
 				CollectionAmount:  0.0,
 			})
 		} else {
-			var total float64
+			total := decimal.NewFromFloat(0)
 			for _, d := range details {
-				total += d.TaxAmount
+				total = total.Add(decimal.NewFromFloat(d.TaxAmount))
 			}
-			diffInTaxAmount := estimate.EstimateAmount - total
-			if diffInTaxAmount != 0 {
+			estAmt := decimal.NewFromFloat(estimate.EstimateAmount)
+			diffInTaxAmount := estAmt.Sub(total)
+			if !diffInTaxAmount.IsZero() {
+				diffFloat, _ := diffInTaxAmount.Float64()
 				newDemandDetails = append(newDemandDetails, domain.DemandDetail{
-					TaxAmount:         diffInTaxAmount,
+					TaxAmount:         diffFloat,
 					TaxHeadMasterCode: estimate.TaxHeadCode,
 					TenantId:          calculation.TenantId,
 					CollectionAmount:  0.0,
@@ -277,7 +280,7 @@ func (s *DemandService) getUpdatedDemandDetails(calculation domain.Calculation, 
 }
 
 func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]domain.DemandDetail, businessService string) {
-	var totalTax float64
+	totalTax := decimal.NewFromFloat(0)
 	var prevRoundOffDemandDetail *domain.DemandDetail
 
 	roundOffTaxHeadCode := businessService + MDMSRoundOffTaxHead
@@ -285,22 +288,32 @@ func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]dom
 	for i := range *demandDetails {
 		detail := &(*demandDetails)[i]
 		if !strings.EqualFold(detail.TaxHeadMasterCode, roundOffTaxHeadCode) {
-			totalTax += detail.TaxAmount
+			totalTax = totalTax.Add(decimal.NewFromFloat(detail.TaxAmount))
 		} else {
 			prevRoundOffDemandDetail = detail
 		}
 	}
 
-	rounded := math.Round(totalTax)
-	roundOff := rounded - totalTax
+	one := decimal.NewFromInt(1)
+	decimalValue := totalTax.Sub(decimal.NewFromInt(totalTax.IntPart()))
+	midVal := decimal.NewFromFloat(0.5)
+	roundOff := decimal.NewFromFloat(0)
 
-	if prevRoundOffDemandDetail != nil {
-		roundOff -= prevRoundOffDemandDetail.TaxAmount
+	if decimalValue.Cmp(midVal) >= 0 {
+		roundOff = one.Sub(decimalValue)
+	} else if decimalValue.Cmp(midVal) < 0 {
+		roundOff = decimalValue.Neg()
 	}
 
-	if roundOff != 0 {
+	if prevRoundOffDemandDetail != nil {
+		prev := decimal.NewFromFloat(prevRoundOffDemandDetail.TaxAmount)
+		roundOff = roundOff.Sub(prev)
+	}
+
+	if !roundOff.IsZero() {
+		roundOffFloat, _ := roundOff.Float64()
 		roundOffDemandDetail := domain.DemandDetail{
-			TaxAmount:         roundOff,
+			TaxAmount:         roundOffFloat,
 			TaxHeadMasterCode: roundOffTaxHeadCode,
 			TenantId:          tenantId,
 			CollectionAmount:  0.0,
@@ -308,5 +321,3 @@ func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]dom
 		*demandDetails = append(*demandDetails, roundOffDemandDetail)
 	}
 }
-
-
