@@ -118,7 +118,12 @@ func (s *NotificationService) SendNotifications(requestInfo *domain.RequestInfo,
 					},
 					"actions": map[string]interface{}{
 						"tenantId": challan.TenantId,
-						"actionUrls": actionArr,
+						"actionUrls": func() interface{} {
+							if len(actionArr) > 0 {
+								return actionArr[0]["actionUrls"]
+							}
+							return []interface{}{}
+						}(),
 					},
 				},
 			},

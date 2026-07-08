@@ -26,6 +26,7 @@ type Config struct {
 	MDMSSearchEndpoint        string
 	KafkaBrokers              string
 	SaveChallanTopic          string
+	UpdateChallanTopic        string
 	SMSTopic                  string
 	EmailTopic                string
 	UserEventTopic            string
@@ -55,6 +56,7 @@ func LoadConfig() *Config {
 		MDMSSearchEndpoint:        getEnv("MDMS_SEARCH_ENDPOINT", "/egov-mdms-service/v1/_search"),
 		KafkaBrokers:              getEnv("KAFKA_BROKERS", "localhost:9092"),
 		SaveChallanTopic:          getEnv("PERSISTER_SAVE_CHALLAN_TOPIC", "save-challan"),
+		UpdateChallanTopic:        getEnv("PERSISTER_UPDATE_CHALLAN_TOPIC", "update-challan"),
 		SMSTopic:                  getEnv("KAFKA_TOPIC_SMS", "egov.core.notification.sms"),
 		EmailTopic:                getEnv("KAFKA_TOPIC_EMAIL", "egov.core.notification.email"),
 		UserEventTopic:            getEnv("KAFKA_TOPIC_USER_EVENT", "persist-user-events-async"),

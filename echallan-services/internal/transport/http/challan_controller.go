@@ -127,13 +127,17 @@ func (cc *ChallanController) Update(c *gin.Context) {
 
 func (cc *ChallanController) Count(c *gin.Context) {
 	tenantId := c.Query("tenantId")
-	var reqInfo domain.RequestInfo
-	if err := c.ShouldBindJSON(&reqInfo); err != nil {
+	var req domain.RequestInfoWrapper
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
 			Code:    "INVALID_REQUEST",
 			Message: "Failed to parse JSON payload",
 		})
 		return
+	}
+	var reqInfo domain.RequestInfo
+	if req.RequestInfo != nil {
+		reqInfo = *req.RequestInfo
 	}
 
 	countRes, err := cc.challanService.Count(tenantId, &reqInfo)

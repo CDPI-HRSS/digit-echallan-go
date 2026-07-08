@@ -67,6 +67,37 @@ func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domai
 		return nil, 0, err
 	}
 
+	if len(challans) > 0 {
+		var ids []string
+		for _, c := range challans {
+			ids = append(ids, c.Id)
+		}
+		
+		q, args, err := sqlx.In("SELECT echallanid, taxheadcode, amount FROM eg_challan_amount WHERE echallanid IN (?)", ids)
+		if err == nil {
+			q = r.db.Rebind(q)
+			
+			type amountRow struct {
+				ChallanId   string  `db:"echallanid"`
+				TaxHeadCode string  `db:"taxheadcode"`
+				Amount      float64 `db:"amount"`
+			}
+			var amounts []amountRow
+			if err := r.db.Select(&amounts, q, args...); err == nil {
+				for i, c := range challans {
+					for _, a := range amounts {
+						if a.ChallanId == c.Id {
+							challans[i].Amount = append(challans[i].Amount, domain.Amount{
+								TaxHeadCode: a.TaxHeadCode,
+								Amount:      a.Amount,
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return challans, totalCount, nil
 }
 

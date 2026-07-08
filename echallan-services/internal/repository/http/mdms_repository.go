@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -44,7 +45,10 @@ func (r *MdmsRepository) FetchMasterData(reqInfo *domain.RequestInfo, tenantId s
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := r.client.Do(req)
@@ -54,12 +58,17 @@ func (r *MdmsRepository) FetchMasterData(reqInfo *domain.RequestInfo, tenantId s
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("MDMS service returned %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("MDMS service returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
+	}
+
+	if mdmsRes, ok := result["MdmsRes"].(map[string]interface{}); ok {
+		return mdmsRes, nil
 	}
 
 	return result, nil

@@ -63,7 +63,7 @@ func main() {
 	idgenRepo := httpclient.NewIdGenRepository(cfg)
 	billRepo := httpclient.NewBillingRepository(cfg)
 
-	challanSvc := service.NewChallanService(producer, repo, val, userRepo, notifSvc, idgenRepo, billRepo)
+	challanSvc := service.NewChallanService(cfg, producer, repo, val, userRepo, notifSvc, idgenRepo, billRepo)
 	challanCtrl := httptransport.NewChallanController(challanSvc, producer)
 
 	paymentSvc := service.NewPaymentUpdateService(producer, repo)

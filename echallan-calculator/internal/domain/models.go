@@ -69,8 +69,35 @@ func (ui *UserInfo) ToCommonUser() *User {
 	if ui == nil {
 		return nil
 	}
-	u := ui.User
-	// Ensure common fields are copied if they were only populated in UserInfo root
+	u := User{
+		Id:                    ui.Id,
+		Uuid:                  ui.Uuid,
+		UserName:              ui.UserName,
+		Password:              ui.Password,
+		Salutation:            ui.Salutation,
+		Name:                  ui.Name,
+		Gender:                ui.Gender,
+		MobileNumber:          ui.MobileNumber,
+		EmailId:               ui.EmailId,
+		AltContactNumber:      ui.AltContactNumber,
+		Pan:                   ui.Pan,
+		AadhaarNumber:         ui.AadhaarNumber,
+		PermanentAddress:      ui.PermanentAddress,
+		PermanentCity:         ui.PermanentCity,
+		PermanentPinCode:      ui.PermanentPinCode,
+		CorrespondenceCity:    ui.CorrespondenceCity,
+		CorrespondencePinCode: ui.CorrespondencePinCode,
+		CorrespondenceAddress: ui.CorrespondenceAddress,
+		Active:                ui.Active,
+		TenantId:              ui.TenantId,
+		Type:                  ui.Type,
+	}
+
+	if len(ui.User.Roles) > 0 {
+		u.Roles = make([]Role, len(ui.User.Roles))
+		copy(u.Roles, ui.User.Roles)
+	}
+
 	if u.TenantId == "" {
 		u.TenantId = ui.TenantId
 	}
@@ -171,7 +198,7 @@ type ChallanResponse struct {
 	Challans     []Challan     `json:"challans,omitempty"`
 }
 
-type CalulationCriteria struct {
+type CalculationCriteria struct {
 	Challan   *Challan `json:"challan,omitempty"`
 	ChallanNo string   `json:"challanNo,omitempty"`
 	TenantId  string   `json:"tenantId"`
@@ -192,7 +219,7 @@ type Calculation struct {
 
 type CalculationReq struct {
 	RequestInfo        *RequestInfo         `json:"RequestInfo"`
-	CalulationCriteria []CalulationCriteria `json:"CalulationCriteria"`
+	CalculationCriteria []CalculationCriteria `json:"CalculationCriteria"`
 }
 
 type CalculationRes struct {
@@ -288,8 +315,8 @@ type Bill struct {
 }
 
 type BillResponse struct {
-	ResposneInfo *ResponseInfo `json:"ResposneInfo,omitempty"` // Preserved typo from Java
-	Bill         []Bill        `json:"Bill"`
+	ResponseInfo *ResponseInfo `json:"responseInfo,omitempty"`
+	Bill         []Bill        `json:"bill"`
 }
 
 type Error struct {

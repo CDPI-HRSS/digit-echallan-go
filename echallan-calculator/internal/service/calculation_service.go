@@ -33,15 +33,17 @@ func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domai
 	if err := s.validator.ValidateCalculationReq(req); err != nil {
 		return nil, err
 	}
-	calculations, err := s.getCalculationInternal(req.RequestInfo, req.CalulationCriteria)
+	calculations, err := s.getCalculationInternal(req.RequestInfo, req.CalculationCriteria)
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range req.CalulationCriteria {
-		criteria := &req.CalulationCriteria[i]
+	for i := range req.CalculationCriteria {
+		criteria := &req.CalculationCriteria[i]
 		if criteria.Challan != nil && strings.EqualFold(criteria.Challan.ApplicationStatus, "CANCELLED") {
-			s.CancelBill(req.RequestInfo, criteria.Challan)
+			if err := s.CancelBill(req.RequestInfo, criteria.Challan); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -51,7 +53,7 @@ func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domai
 			businessService = calculations[0].Challan.BusinessService
 		} else {
 			// Find business service from criteria if challan is not populated yet
-			for _, crit := range req.CalulationCriteria {
+			for _, crit := range req.CalculationCriteria {
 				if crit.Challan != nil {
 					businessService = crit.Challan.BusinessService
 					break
@@ -67,11 +69,11 @@ func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domai
 	return calculations, nil
 }
 
-func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestInfo, criterias []domain.CalulationCriteria) ([]domain.Calculation, error) {
+func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestInfo, criteriaList []domain.CalculationCriteria) ([]domain.Calculation, error) {
 	var calculations []domain.Calculation
 
-	for i := range criterias {
-		criteria := &criterias[i]
+	for i := range criteriaList {
+		criteria := &criteriaList[i]
 		challan := criteria.Challan
 		if challan == nil && criteria.ChallanNo != "" {
 			var err error
@@ -112,9 +114,9 @@ func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestI
 	return calculations, nil
 }
 
-func (s *CalculationService) CancelBill(requestInfo *domain.RequestInfo, challan *domain.Challan) {
+func (s *CalculationService) CancelBill(requestInfo *domain.RequestInfo, challan *domain.Challan) error {
 	if challan == nil {
-		return
+		return nil
 	}
 
 	url := s.cfg.BillingHost + s.cfg.CancelBillEndpoint
@@ -134,8 +136,8 @@ func (s *CalculationService) CancelBill(requestInfo *domain.RequestInfo, challan
 	var responseTarget interface{}
 	err := s.srRepo.FetchResult(url, requestBody, &responseTarget)
 	if err != nil {
-		// Log error and swallow (matches Java try-catch behavior)
-		fmt.Printf("Exception while cancelling bill for challan %s: %v\n", challan.ChallanNo, err)
+		return fmt.Errorf("billing service failed to cancel demand: %w", err)
 	}
+	return nil
 }
 
