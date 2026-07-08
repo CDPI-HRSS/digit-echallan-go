@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -36,7 +37,10 @@ func (r *UserRepository) SearchUsers(requestInfo *domain.RequestInfo, uuids []st
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := r.client.Do(req)
@@ -46,13 +50,17 @@ func (r *UserRepository) SearchUsers(requestInfo *domain.RequestInfo, uuids []st
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("user service returned %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("user service returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {
 		User []domain.UserInfo `json:"user"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("USER REPO RAW JSON: %s\n", string(respBody))
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		fmt.Printf("USER REPO JSON ERROR: %v\n", err)
 		return nil, err
 	}
 
@@ -77,7 +85,10 @@ func (r *UserRepository) CreateUser(requestInfo *domain.RequestInfo, user *domai
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := r.client.Do(req)
@@ -87,7 +98,8 @@ func (r *UserRepository) CreateUser(requestInfo *domain.RequestInfo, user *domai
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("user service create returned %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("user service create returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {

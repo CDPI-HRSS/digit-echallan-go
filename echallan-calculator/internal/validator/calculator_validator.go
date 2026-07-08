@@ -16,11 +16,11 @@ func (v *CalculatorValidator) ValidateCalculationReq(req *domain.CalculationReq)
 	if req == nil {
 		return fmt.Errorf("CalculationReq is missing from request payload")
 	}
-	if len(req.CalulationCriteria) == 0 {
+	if len(req.CalculationCriteria) == 0 {
 		return fmt.Errorf("CalculationCriteria is missing or empty")
 	}
 	
-	for i, c := range req.CalulationCriteria {
+	for i, c := range req.CalculationCriteria {
 		if c.TenantId == "" {
 			return fmt.Errorf("TenantId is mandatory at criteria index %d", i)
 		}

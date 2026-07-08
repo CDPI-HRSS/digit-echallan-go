@@ -36,8 +36,8 @@ func BuildSearchQuery(criteria domain.SearchCriteria) (string, []interface{}) {
 		q += " AND e.receiptnumber = ?"
 		args = append(args, criteria.ReceiptNumber)
 	}
+	// MobileNumber is now converted to AccountId (UUID) at the service layer before reaching the DB query
 	if criteria.MobileNumber != "" {
-		// e.accountid refers to uuid of citizen
 		q += " AND e.accountid = ?"
 		args = append(args, criteria.MobileNumber)
 	}

@@ -57,30 +57,48 @@ func (v *ChallanValidator) ValidateCreateRequest(req *domain.ChallanRequest) err
 	// 2. MDMS Fetch (Financial Year)
 	mdmsData, err := v.mdmsRepo.FetchMasterData(req.RequestInfo, challan.TenantId)
 	if err != nil {
-		fmt.Println("Warning: MDMS Fetch failed:", err)
-	} else {
-		validFinancialYear := false
-		if egovCommon, ok := mdmsData["egov-common-masters"].(map[string]interface{}); ok {
-			if fyList, ok := egovCommon["FinancialYear"].([]interface{}); ok {
-				for _, fyIntf := range fyList {
-					if fy, ok := fyIntf.(map[string]interface{}); ok {
-						startDateRaw, ok1 := fy["startingDate"].(float64)
-						endDateRaw, ok2 := fy["endingDate"].(float64)
-						if ok1 && ok2 {
-							startDate := int64(startDateRaw)
-							endDate := int64(endDateRaw)
-							if challan.TaxPeriodFrom < challan.TaxPeriodTo && challan.TaxPeriodFrom >= startDate && challan.TaxPeriodTo <= endDate {
-								validFinancialYear = true
-								break
-							}
+		return fmt.Errorf("failed to fetch MDMS data: %w", err)
+	}
+
+	validFinancialYear := false
+	if egovCommon, ok := mdmsData["egov-common-masters"].(map[string]interface{}); ok {
+		if fyList, ok := egovCommon["FinancialYear"].([]interface{}); ok {
+			for _, fyIntf := range fyList {
+				if fy, ok := fyIntf.(map[string]interface{}); ok {
+					startDateRaw, ok1 := fy["startingDate"].(float64)
+					endDateRaw, ok2 := fy["endingDate"].(float64)
+					if ok1 && ok2 {
+						startDate := int64(startDateRaw)
+						endDate := int64(endDateRaw)
+						if challan.TaxPeriodFrom < challan.TaxPeriodTo && challan.TaxPeriodFrom >= startDate && challan.TaxPeriodTo <= endDate {
+							validFinancialYear = true
+							break
 						}
 					}
 				}
 			}
 		}
-		if !validFinancialYear {
-			// We only enforce this if MDMS data is present and parsed
-			fmt.Println("Warning: Tax period details are invalid compared to MDMS")
+	}
+	if !validFinancialYear {
+		return fmt.Errorf("Tax period details are invalid compared to MDMS")
+	}
+
+	// TaxHeadMaster validation
+	if billingService, ok := mdmsData["BillingService"].(map[string]interface{}); ok {
+		if taxHeadMasterList, ok := billingService["TaxHeadMaster"].([]interface{}); ok {
+			validTaxHeads := make(map[string]bool)
+			for _, thIntf := range taxHeadMasterList {
+				if th, ok := thIntf.(map[string]interface{}); ok {
+					if code, ok := th["code"].(string); ok {
+						validTaxHeads[code] = true
+					}
+				}
+			}
+			for _, amt := range challan.Amount {
+				if amt.TaxHeadCode != "" && !validTaxHeads[amt.TaxHeadCode] {
+					return fmt.Errorf("Invalid TaxHeadCode: %s", amt.TaxHeadCode)
+				}
+			}
 		}
 	}
 
@@ -90,17 +108,22 @@ func (v *ChallanValidator) ValidateCreateRequest(req *domain.ChallanRequest) err
 	}
 
 	localityCodes, err := v.locRepo.GetLocalityCodes(challan.TenantId, req.RequestInfo)
-	if err == nil && len(localityCodes) > 0 {
-		found := false
-		for _, code := range localityCodes {
-			if code == challan.Address.Locality.Code {
-				found = true
-				break
-			}
+	if err != nil {
+		return fmt.Errorf("failed to fetch locality boundaries from Location Service: %w", err)
+	}
+	if len(localityCodes) == 0 {
+		return fmt.Errorf("no locality boundaries found for tenant %s", challan.TenantId)
+	}
+
+	found := false
+	for _, code := range localityCodes {
+		if code == challan.Address.Locality.Code {
+			found = true
+			break
 		}
-		if !found {
-			return fmt.Errorf("Locality details are invalid")
-		}
+	}
+	if !found {
+		return fmt.Errorf("Locality details are invalid")
 	}
 
 	return nil

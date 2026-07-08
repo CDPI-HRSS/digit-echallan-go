@@ -48,9 +48,10 @@ type UserInfo struct {
 	EmailId           string      `json:"emailId,omitempty"`
 	TenantId          string      `json:"tenantId"`
 	Uuid              string      `json:"uuid"`
+	Name              string      `json:"name,omitempty"`
 	UserName          string      `json:"userName"`
 	Type              string      `json:"type"`
-	Id                int         `json:"id,omitempty"`
+	Id                int64       `json:"id,omitempty"`
 	Roles             []Role      `json:"roles"`
 	PwdExpiryDate     *CustomDate `json:"pwdExpiryDate,omitempty"`
 	CreatedDate       *CustomDate `json:"createdDate,omitempty"`
@@ -220,7 +221,7 @@ type CalculationCriteria struct {
 
 type CalculationReq struct {
 	RequestInfo         *RequestInfo          `json:"RequestInfo"`
-	CalculationCriteria []CalculationCriteria `json:"CalulationCriteria"`
+	CalculationCriteria []CalculationCriteria `json:"CalculationCriteria"`
 }
 
 // --- Missing User Definition ---

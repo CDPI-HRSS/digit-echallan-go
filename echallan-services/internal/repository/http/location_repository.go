@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -26,7 +27,10 @@ func (r *LocationRepository) GetLocalityCodes(tenantId string, requestInfo *doma
 	// egov-location boundary endpoint
 	url := fmt.Sprintf("%s/egov-location/location/v11/boundarys/_search?tenantId=%s&hierarchyTypeCode=REVENUE&boundaryType=Locality", r.cfg.MDMSHost, tenantId)
 
-	req, _ := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := r.client.Do(req)
@@ -36,7 +40,8 @@ func (r *LocationRepository) GetLocalityCodes(tenantId string, requestInfo *doma
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("location service returned %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("location service returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {

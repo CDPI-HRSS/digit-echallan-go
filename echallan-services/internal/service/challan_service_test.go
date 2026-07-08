@@ -24,7 +24,7 @@ func (m *mockRepo) Count(tenantId string) (map[string]int, error) {
 
 func TestChallanService_Create(t *testing.T) {
 	producer := kafka.NewProducer([]string{})
-	svc := NewChallanService(producer, &mockRepo{}, validator.NewChallanValidator(nil, nil), nil, nil, nil, nil)
+	svc := NewChallanService(nil, producer, &mockRepo{}, validator.NewChallanValidator(nil, nil), nil, nil, nil, nil)
 
 	req := &domain.ChallanRequest{
 		RequestInfo: &domain.RequestInfo{
@@ -52,7 +52,7 @@ func TestChallanService_Create(t *testing.T) {
 }
 
 func TestChallanService_Search(t *testing.T) {
-	svc := NewChallanService(nil, &mockRepo{}, validator.NewChallanValidator(nil, nil), nil, nil, nil, nil)
+	svc := NewChallanService(nil, nil, &mockRepo{}, validator.NewChallanValidator(nil, nil), nil, nil, nil, nil)
 
 	// Test happy path
 	criteria := domain.SearchCriteria{TenantId: "pb", ChallanNo: "MOCK-123"}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
 
+	"github.com/CDPI-HRSS/echallan-services/configs"
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/postgres"
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/http"
 	"github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
@@ -14,6 +15,7 @@ import (
 )
 
 type challanServiceImpl struct {
+	cfg       *config.Config
 	userRepo  *http.UserRepository
 	notifSvc  *NotificationService
 	idgenRepo *http.IdGenRepository
@@ -23,8 +25,9 @@ type challanServiceImpl struct {
 	validator *validator.ChallanValidator
 }
 
-func NewChallanService(producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator, userRepo *http.UserRepository, notifSvc *NotificationService, idgenRepo *http.IdGenRepository, billRepo *http.BillingRepository) ChallanService {
+func NewChallanService(cfg *config.Config, producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator, userRepo *http.UserRepository, notifSvc *NotificationService, idgenRepo *http.IdGenRepository, billRepo *http.BillingRepository) ChallanService {
 	return &challanServiceImpl{
+		cfg:       cfg,
 		producer:  producer,
 		repo:      repo,
 		userRepo:  userRepo,
@@ -49,23 +52,20 @@ func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan
 	
 	// IDGen Call
 	ids, err := s.idgenRepo.GenerateId(req.RequestInfo, req.Challan.TenantId, "echallan.number", "CH-[cy:yyyy-MM-dd]-[SEQ_EG_CHALLAN_NUM]", 1)
-	if err == nil && len(ids) > 0 {
-		req.Challan.ChallanNo = ids[0]
-	} else {
-		// Fallback if IDGen is down
-		req.Challan.ChallanNo = fmt.Sprintf("CH-%d", time.Now().UnixNano())
+	if err != nil || len(ids) == 0 {
+		return nil, fmt.Errorf("failed to generate Challan Number from IDGen service: %w", err)
 	}
+	req.Challan.ChallanNo = ids[0]
 	
 	// User Creation / UUID assignment
 	if req.Challan.Citizen != nil {
 		createdUser, err := s.userRepo.CreateUser(req.RequestInfo, req.Challan.Citizen)
-		if err == nil && createdUser != nil {
-			req.Challan.Citizen.Uuid = createdUser.Uuid
-			req.Challan.Citizen.Id = createdUser.Id
-			req.Challan.AccountId = createdUser.Uuid
-		} else {
-			req.Challan.AccountId = req.Challan.Citizen.Uuid
+		if err != nil || createdUser == nil {
+			return nil, fmt.Errorf("failed to create/fetch citizen profile from User Service: %w", err)
 		}
+		req.Challan.Citizen.Uuid = createdUser.Uuid
+		req.Challan.Citizen.Id = createdUser.Id
+		req.Challan.AccountId = createdUser.Uuid
 	} else if req.Challan.AccountId == "" && req.RequestInfo != nil && req.RequestInfo.UserInfo != nil {
 		req.Challan.AccountId = req.RequestInfo.UserInfo.Uuid
 	}
@@ -88,7 +88,7 @@ func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan
 		return nil, fmt.Errorf("failed to generate calculation/demand: %w", err)
 	}
 
-	err = s.producer.Push("save-challan", req)
+	err = s.producer.Push(s.cfg.SaveChallanTopic, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to persist challan: %w", err)
 	}
@@ -104,7 +104,10 @@ func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan
 		TenantId:  req.Challan.TenantId,
 		ChallanNo: req.Challan.ChallanNo,
 	}
-	searchResult, _, _ := s.Search(searchCriteria, req.RequestInfo)
+	searchResult, _, err := s.Search(searchCriteria, req.RequestInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search for existing challan during update: %w", err)
+	}
 
 	if err := s.validator.ValidateUpdateRequest(req, searchResult); err != nil {
 		return nil, err
@@ -123,18 +126,21 @@ func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan
 	if req.RequestInfo != nil && req.RequestInfo.UserInfo != nil {
 		reqUuid = req.RequestInfo.UserInfo.Uuid
 	}
-	req.Challan.AuditDetails = &domain.AuditDetails{
-		LastModifiedBy:   reqUuid,
-		LastModifiedTime: time.Now().UnixMilli(),
+	if len(searchResult) > 0 && searchResult[0].AuditDetails != nil {
+		req.Challan.AuditDetails = searchResult[0].AuditDetails
+	} else {
+		req.Challan.AuditDetails = &domain.AuditDetails{}
 	}
+	req.Challan.AuditDetails.LastModifiedBy = reqUuid
+	req.Challan.AuditDetails.LastModifiedTime = time.Now().UnixMilli()
 
 	// 4. Calculation Call
-	err := s.billRepo.GenerateBill(req.RequestInfo, req.Challan)
+	err = s.billRepo.GenerateBill(req.RequestInfo, req.Challan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update calculation/demand: %w", err)
 	}
 
-	err = s.producer.Push("update-challan", req)
+	err = s.producer.Push(s.cfg.UpdateChallanTopic, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to persist challan update: %w", err)
 	}
@@ -147,7 +153,7 @@ func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan
 func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, int, error) {
 	// RBAC logic
 	if reqInfo != nil && reqInfo.UserInfo != nil && reqInfo.UserInfo.Type != "EMPLOYEE" {
-		criteria.MobileNumber = reqInfo.UserInfo.MobileNumber
+		criteria.AccountId = reqInfo.UserInfo.Uuid
 	}
 
 	challans, count, err := s.repo.Search(criteria)
@@ -164,7 +170,9 @@ func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *dom
 		}
 	}
 
-	users, _ := s.userRepo.SearchUsers(reqInfo, uuids)
+	fmt.Printf("SEARCH uuids: %v\n", uuids)
+	users, err := s.userRepo.SearchUsers(reqInfo, uuids)
+	fmt.Printf("SEARCH users returned: %v, err: %v\n", len(users), err)
 	userObjMap := make(map[string]*domain.UserInfo)
 	for i := range users {
 		userObjMap[users[i].Uuid] = &users[i]

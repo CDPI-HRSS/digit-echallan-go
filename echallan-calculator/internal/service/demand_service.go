@@ -305,6 +305,10 @@ func (s *DemandService) addRoundOffTaxHead(tenantId string, demandDetails *[]dom
 		roundOff = decimalValue.Neg()
 	}
 
+	if totalTax.Cmp(decimal.NewFromInt(0)) < 0 && roundOff.Cmp(decimal.NewFromInt(0)) > 0 {
+		roundOff = roundOff.Sub(one)
+	}
+
 	if prevRoundOffDemandDetail != nil {
 		prev := decimal.NewFromFloat(prevRoundOffDemandDetail.TaxAmount)
 		roundOff = roundOff.Sub(prev)
