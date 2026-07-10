@@ -1,0 +1,120 @@
+{
+    "info": {
+        "name": "eChallan API",
+        "description": "DIGIT eChallan Core Services Collection",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "eChallan Services",
+            "item": [
+                {
+                    "name": "Create Challan",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/eChallan/v1/_create",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "eChallan",
+                                "v1",
+                                "_create"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"asset-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"search with from and to values\",\n        \"authToken\": \"e1bb30fb-96bc-4521-9d29-4d0f6edef3bc\",\n        \"userInfo\": {\n            \"id\": 1,\n            \"uuid\": \"u1\",\n            \"type\": \"EMPLOYEE\",\n            \"tenantId\": \"pb.amritsar\",\n            \"roles\": [\n                {\n                    \"name\": \"Employee\",\n                    \"code\": \"EMPLOYEE\",\n                    \"tenantId\": \"pb.amritsar\"\n                }\n            ]\n        }\n    },\n    \"Challan\": {\n        \"citizen\": {\n            \"name\": \"John Doe\",\n            \"mobileNumber\": \"9876543210\"\n        },\n        \"businessService\": \"CHALLAN\",\n        \"tenantId\": \"pb.amritsar\",\n        \"taxPeriodFrom\": 1618204200000,\n        \"taxPeriodTo\": 1649740199000,\n        \"amount\": [\n            {\n                \"taxHeadCode\": \"CHALLAN_FEE\",\n                \"amount\": 1500.0\n            }\n        ],\n        \"address\": {\n            \"city\": \"Amritsar\",\n            \"locality\": {\n                \"code\": \"SUN11\"\n            }\n        }\n    }\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Search Challan",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/eChallan/v1/_search?tenantId=pb.amritsar&mobileNumber=9876543210",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "eChallan",
+                                "v1",
+                                "_search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tenantId",
+                                    "value": "pb.amritsar"
+                                },
+                                {
+                                    "key": "mobileNumber",
+                                    "value": "9876543210"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"RequestInfo\": {\n        \"userInfo\": {\n            \"uuid\": \"u1\",\n            \"type\": \"EMPLOYEE\",\n            \"tenantId\": \"pb.amritsar\"\n        }\n    }\n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "eChallan Calculator",
+            "item": [
+                {
+                    "name": "Calculate Demands",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{calc_host}}/echallan-calculator/v1/_calculate",
+                            "host": [
+                                "{{calc_host}}"
+                            ],
+                            "path": [
+                                "echallan-calculator",
+                                "v1",
+                                "_calculate"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"RequestInfo\": {\n        \"userInfo\": {\n            \"uuid\": \"u1\",\n            \"type\": \"EMPLOYEE\",\n            \"tenantId\": \"pb.amritsar\"\n        }\n    },\n    \"CalculationCriteria\": [\n        {\n            \"tenantId\": \"pb.amritsar\",\n            \"challan\": {\n                \"accountId\": \"acc-1\",\n                \"tenantId\": \"pb.amritsar\",\n                \"businessService\": \"CHALLAN\",\n                \"taxPeriodFrom\": 1618204200000,\n                \"taxPeriodTo\": 1649740199000,\n                \"amount\": [\n                    {\n                        \"taxHeadCode\": \"CHALLAN_FEE\",\n                        \"amount\": 1500.0\n                    }\n                ]\n            }\n        }\n    ]\n}"
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "host",
+            "value": "http://localhost:8082"
+        },
+        {
+            "key": "calc_host",
+            "value": "http://localhost:8078"
+        }
+    ]
+}

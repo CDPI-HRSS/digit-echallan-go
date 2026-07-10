@@ -1,0 +1,50 @@
+openapi: 3.0.0
+info:
+  title: DIGIT eChallan API
+  version: 1.0.0
+  description: API Specification for eChallan Services and Calculator
+servers:
+- url: http://localhost:8082
+  description: eChallan Services (Local)
+- url: http://localhost:8078
+  description: eChallan Calculator (Local)
+paths:
+  /eChallan/v1/_create:
+    post:
+      summary: Create a new Challan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Challan created successfully
+        '400':
+          description: Bad Request
+  /eChallan/v1/_search:
+    post:
+      summary: Search Challans
+      parameters:
+      - name: tenantId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: mobileNumber
+        in: query
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Search results returned
+        '400':
+          description: Invalid search criteria
