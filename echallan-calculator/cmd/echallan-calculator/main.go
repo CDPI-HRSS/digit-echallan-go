@@ -1,60 +1,90 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/gin-contrib/cors"
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
-	"github.com/CDPI-HRSS/calci_sp/configs"
-	rephttp "github.com/CDPI-HRSS/calci_sp/internal/repository/http"
+	config "github.com/CDPI-HRSS/calci_sp/configs"
+	httprepo "github.com/CDPI-HRSS/calci_sp/internal/repository/http"
 	"github.com/CDPI-HRSS/calci_sp/internal/service"
-	controllers "github.com/CDPI-HRSS/calci_sp/internal/transport/http"
+	httptransport "github.com/CDPI-HRSS/calci_sp/internal/transport/http"
 	"github.com/CDPI-HRSS/calci_sp/internal/util"
 	"github.com/CDPI-HRSS/calci_sp/internal/validator"
 )
 
 func main() {
-	// 1. Load Configuration
-	cfg := configs.LoadConfig()
+	// 1. Initialize Zap Logger
+	logger, _ := zap.NewProduction()
+	defer func() { _ = logger.Sync() }()
+	zap.ReplaceGlobals(logger)
 
-	// 2. Initialize Repositories
-	srRepo := rephttp.NewServiceRequestRepository()
-	demandRepo := rephttp.NewDemandRepository(cfg, srRepo)
+	cfg := config.LoadConfig()
+	zap.L().Info("Loaded calculator configuration", zap.String("port", cfg.ServerPort))
 
-	// 3. Initialize Utils & Validator
+	// 3. Dependency Injection (Wiring)
+	srRepo := httprepo.NewServiceRequestRepository()
 	utils := util.NewCalculationUtils(cfg, srRepo)
+	demandRepo := httprepo.NewDemandRepository(cfg, srRepo)
+	demandSvc := service.NewDemandService(cfg, utils, srRepo, demandRepo)
 	val := validator.NewCalculatorValidator()
+	calcSvc := service.NewCalculationService(cfg, utils, srRepo, demandSvc, val)
+	calcCtrl := httptransport.NewChallanCalController(calcSvc)
 
-	// 4. Initialize Services
-	demandService := service.NewDemandService(cfg, utils, srRepo, demandRepo)
-	calcService := service.NewCalculationService(cfg, utils, srRepo, demandService, val)
+	// 4. Router Setup & Middleware
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
 
-	// 5. Initialize Controllers
-	ctrl := controllers.NewChallanCalController(calcService)
+	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
+	r.Use(ginzap.RecoveryWithZap(logger, true))
 
-	// 6. Setup Gin Router
-	r := gin.Default()
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
-	// Setup health check
+	calcCtrl.RegisterRoutes(r, "/echallan-calculator/v1")
+
 	r.GET("/echallan-calculator/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "UP"})
+		c.JSON(200, gin.H{"status": "UP"})
 	})
 
-	// Register business routes
-	ctrl.RegisterRoutes(r, cfg.ContextPath)
+	srv := &http.Server{
+		Addr:    ":" + cfg.ServerPort,
+		Handler: r,
+	}
 
-	// 7. Start Server
-	port := cfg.ServerPort
-	if port == "" {
-		port = "8078"
+	// 5. Graceful Shutdown
+	go func() {
+		zap.L().Info("Starting eChallan Calculator", zap.String("port", cfg.ServerPort))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Fatal("Failed to start server", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	zap.L().Info("Graceful Shutdown initialized...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		zap.L().Fatal("Server forced to shutdown", zap.Error(err))
 	}
 	
-	log.Printf("Starting echallan-calculator on port %s with context path %s", port, cfg.ContextPath)
-	if err := r.Run(fmt.Sprintf(":%s", port)); err != nil {
-		log.Printf("Failed to start server: %v", err)
-		os.Exit(1)
-	}
+	zap.L().Info("Calculator exiting gracefully")
 }
