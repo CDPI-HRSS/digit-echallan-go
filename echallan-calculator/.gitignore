@@ -6,7 +6,7 @@
 service.log
 
 # Build outputs
-echallan-calculator
+/echallan-calculator
 *.exe
 
 # OS generated files
