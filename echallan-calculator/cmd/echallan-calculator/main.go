@@ -8,12 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/CDPI-HRSS/digit-echallan-go/echallan-calculator/configs"
-	rephttp "github.com/CDPI-HRSS/digit-echallan-go/echallan-calculator/internal/repository/http"
-	"github.com/CDPI-HRSS/digit-echallan-go/echallan-calculator/internal/service"
-	controllers "github.com/CDPI-HRSS/digit-echallan-go/echallan-calculator/internal/transport/http"
-	"github.com/CDPI-HRSS/digit-echallan-go/echallan-calculator/internal/util"
-	"github.com/CDPI-HRSS/digit-echallan-go/echallan-calculator/internal/validator"
+	"github.com/CDPI-HRSS/calci_sp/configs"
+	rephttp "github.com/CDPI-HRSS/calci_sp/internal/repository/http"
+	"github.com/CDPI-HRSS/calci_sp/internal/service"
+	controllers "github.com/CDPI-HRSS/calci_sp/internal/transport/http"
+	"github.com/CDPI-HRSS/calci_sp/internal/util"
+	"github.com/CDPI-HRSS/calci_sp/internal/validator"
 )
 
 func main() {
