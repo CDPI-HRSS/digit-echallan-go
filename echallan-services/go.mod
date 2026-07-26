@@ -12,6 +12,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/segmentio/kafka-go v0.4.43
 	go.uber.org/zap v1.28.0
+	github.com/stretchr/testify v1.8.4
 )
 
 require (

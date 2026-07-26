@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: echallan-services
+  namespace: default
+  labels:
+    app: echallan-services
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8079
+    targetPort: 8079
+    protocol: TCP
+  selector:
+    app: echallan-services

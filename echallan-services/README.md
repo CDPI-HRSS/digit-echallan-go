@@ -22,3 +22,17 @@ Ensure the following variables are set in `configs/.env`:
 ## Deployment
 Build the docker container:
 `docker build -t echallan-services-go:v1 -f deployments/Dockerfile .`
+
+## API Routes
+The following main routes are exposed via Gin:
+- `POST /api/v1/challans/_create`
+- `POST /api/v1/challans/_update`
+- `POST /api/v1/challans/_search`
+- `POST /api/v1/challans/_count`
+
+## Authentication
+Keycloak authentication is implemented as middleware. All secure endpoints require a valid Bearer token from Keycloak.
+
+## Testing
+Run unit tests with:
+`go test ./... -v`

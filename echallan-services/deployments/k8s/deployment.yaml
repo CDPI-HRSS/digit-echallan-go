@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echallan-services
+  namespace: default
+  labels:
+    app: echallan-services
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echallan-services
+  template:
+    metadata:
+      labels:
+        app: echallan-services
+    spec:
+      containers:
+      - name: echallan-services
+        image: echallan-services-go:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8079
+        envFrom:
+        - configMapRef:
+            name: echallan-services-config

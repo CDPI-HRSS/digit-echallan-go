@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echallan-calculator
+  labels:
+    app: echallan-calculator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echallan-calculator
+  template:
+    metadata:
+      labels:
+        app: echallan-calculator
+    spec:
+      containers:
+      - name: echallan-calculator
+        image: echallan-calculator:latest
+        ports:
+        - containerPort: 8078
