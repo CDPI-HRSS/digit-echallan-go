@@ -31,6 +31,9 @@ type Config struct {
 	EmailTopic                string
 	UserEventTopic            string
 	PdfGenerateTopic          string
+	KeycloakURL               string
+	KeycloakRealm             string
+	KeycloakClientID          string
 }
 
 func LoadConfig() *Config {
@@ -61,6 +64,9 @@ func LoadConfig() *Config {
 		EmailTopic:                getEnv("KAFKA_TOPIC_EMAIL", "egov.core.notification.email"),
 		UserEventTopic:            getEnv("KAFKA_TOPIC_USER_EVENT", "persist-user-events-async"),
 		PdfGenerateTopic:          getEnv("KAFKA_TOPIC_PDF", "pdf-generated"),
+		KeycloakURL:               getEnv("KEYCLOAK_URL", "http://localhost:8080"),
+		KeycloakRealm:             getEnv("KEYCLOAK_REALM", "digit"),
+		KeycloakClientID:          getEnv("KEYCLOAK_CLIENT_ID", "echallan-services"),
 	}
 }
 

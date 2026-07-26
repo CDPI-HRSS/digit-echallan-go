@@ -9,6 +9,9 @@ import (
 type Config struct {
 	ServerPort            string
 	ContextPath           string
+	KeycloakURL           string
+	KeycloakRealm         string
+	KeycloakClientID      string
 	UserHost              string
 	UserSearchEndpoint    string
 	IdGenHost             string
@@ -32,6 +35,9 @@ func LoadConfig() *Config {
 	return &Config{
 		ServerPort:            getEnv("SERVER_PORT", "8078"),
 		ContextPath:           getEnv("SERVER_CONTEXT_PATH", "/echallan-calculator"),
+		KeycloakURL:           getEnv("KEYCLOAK_URL", "http://localhost:8080"),
+		KeycloakRealm:         getEnv("KEYCLOAK_REALM", "digit"),
+		KeycloakClientID:      getEnv("KEYCLOAK_CLIENT_ID", "echallan-calculator"),
 		UserHost:              getEnv("EGOV_USER_HOST", "http://localhost:8085/"),
 		UserSearchEndpoint:    getEnv("EGOV_USER_SEARCH_PATH", "/user/_search"),
 		IdGenHost:             getEnv("EGOV_IDGEN_HOST", "http://localhost:8088"),

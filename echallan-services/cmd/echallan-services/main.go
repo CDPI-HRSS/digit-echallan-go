@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,8 +13,8 @@ import (
 	"github.com/gin-contrib/cors"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"go.uber.org/zap"
 
 	config "github.com/CDPI-HRSS/echallan-services/configs"
@@ -21,6 +22,7 @@ import (
 
 	httpclient "github.com/CDPI-HRSS/echallan-services/internal/repository/http"
 	"github.com/CDPI-HRSS/echallan-services/internal/service"
+	"github.com/CDPI-HRSS/echallan-services/internal/middleware"
 	httptransport "github.com/CDPI-HRSS/echallan-services/internal/transport/http"
 	kafkatransport "github.com/CDPI-HRSS/echallan-services/internal/transport/kafka"
 	"github.com/CDPI-HRSS/echallan-services/internal/validator"
@@ -42,14 +44,16 @@ func main() {
 	dbUri := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 
-	db, err := sqlx.Connect("postgres", dbUri)
+	db, err := gorm.Open(postgres.Open(dbUri), &gorm.Config{})
+	var sqlDB *sql.DB
 	if err != nil {
 		zap.L().Warn("Failed to connect to Postgres", zap.Error(err))
 	} else {
 		// Set Golden Standard Connection Pool Limits
-		db.SetMaxOpenConns(25)
-		db.SetMaxIdleConns(25)
-		db.SetConnMaxLifetime(5 * time.Minute)
+		sqlDB, _ = db.DB()
+		sqlDB.SetMaxOpenConns(25)
+		sqlDB.SetMaxIdleConns(25)
+		sqlDB.SetConnMaxLifetime(5 * time.Minute)
 		zap.L().Info("Connected to PostgreSQL successfully")
 	}
 
@@ -90,7 +94,13 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	challanCtrl.RegisterRoutes(r)
+	keycloakCfg := middleware.KeycloakConfig{
+		URL:      cfg.KeycloakURL,
+		Realm:    cfg.KeycloakRealm,
+		ClientID: cfg.KeycloakClientID,
+	}
+	authMw := middleware.KeycloakAuthMiddleware(keycloakCfg)
+	challanCtrl.RegisterRoutes(r, authMw)
 
 	r.GET("/echallan-services/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "UP"})
@@ -123,8 +133,8 @@ func main() {
 	}
 	
 	// Clean up resources
-	if db != nil {
-		db.Close()
+	if sqlDB != nil {
+		sqlDB.Close()
 	}
 	zap.L().Info("Server exiting gracefully")
 }

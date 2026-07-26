@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	config "github.com/CDPI-HRSS/calci_sp/configs"
+	"github.com/CDPI-HRSS/calci_sp/internal/middleware"
 	httprepo "github.com/CDPI-HRSS/calci_sp/internal/repository/http"
 	"github.com/CDPI-HRSS/calci_sp/internal/service"
 	httptransport "github.com/CDPI-HRSS/calci_sp/internal/transport/http"
@@ -30,7 +32,7 @@ func main() {
 	cfg := config.LoadConfig()
 	zap.L().Info("Loaded calculator configuration", zap.String("port", cfg.ServerPort))
 
-	// 3. Dependency Injection (Wiring)
+	// 2. Dependency Injection (Wiring)
 	srRepo := httprepo.NewServiceRequestRepository()
 	utils := util.NewCalculationUtils(cfg, srRepo)
 	demandRepo := httprepo.NewDemandRepository(cfg, srRepo)
@@ -39,7 +41,7 @@ func main() {
 	calcSvc := service.NewCalculationService(cfg, utils, srRepo, demandSvc, val)
 	calcCtrl := httptransport.NewChallanCalController(calcSvc)
 
-	// 4. Router Setup & Middleware
+	// 3. Router Setup & Middleware
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
@@ -55,18 +57,28 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	calcCtrl.RegisterRoutes(r, "/echallan-calculator/v1")
+	// 4. Keycloak Auth Middleware
+	keycloakCfg := middleware.KeycloakConfig{
+		URL:      cfg.KeycloakURL,
+		Realm:    cfg.KeycloakRealm,
+		ClientID: cfg.KeycloakClientID,
+	}
+	authMw := middleware.KeycloakAuthMiddleware(keycloakCfg)
 
+	// Health check (unprotected)
 	r.GET("/echallan-calculator/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "UP"})
 	})
 
+	// Register business routes (RESTful + legacy)
+	calcCtrl.RegisterRoutes(r, cfg.ContextPath, authMw)
+
+	// 5. Graceful Shutdown
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
+		Addr:    fmt.Sprintf(":%s", cfg.ServerPort),
 		Handler: r,
 	}
 
-	// 5. Graceful Shutdown
 	go func() {
 		zap.L().Info("Starting eChallan Calculator", zap.String("port", cfg.ServerPort))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

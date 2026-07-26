@@ -52,6 +52,9 @@ services:
       - DB_PASSWORD=password
       - DB_NAME=echallan
       - KAFKA_BROKERS=kafka:29092
+      - KEYCLOAK_URL=${KEYCLOAK_URL:-http://localhost:8080}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digit}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-echallan-services}
     depends_on:
       - postgres
       - kafka
@@ -68,6 +71,9 @@ services:
       - SERVER_PORT=8078
       - EGOV_CHALLAN_HOST=http://echallan-services:8079
       - EGOV_BILLINGSERVICE_HOST=http://localhost:8081 # external mock
+      - KEYCLOAK_URL=${KEYCLOAK_URL:-http://localhost:8080}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digit}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-echallan-calculator}
     depends_on:
       - echallan-services
     networks:

@@ -18,14 +18,23 @@ func NewChallanController(service service.ChallanService, producer *kafka.Produc
 	return &ChallanController{challanService: service, producer: producer}
 }
 
-func (cc *ChallanController) RegisterRoutes(router *gin.Engine) {
-	v1 := router.Group("/eChallan/v1")
+func (cc *ChallanController) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
+	// New RESTful routes
+	api := router.Group("/api/v1/challans")
+	api.Use(authMiddleware)
 	{
-		v1.POST("/_create", cc.Create)
-		v1.POST("/_search", cc.Search)
-		v1.POST("/_update", cc.Update)
-		v1.POST("/_count", cc.Count)
-		v1.POST("/_test", cc.Test)
+		api.POST("", cc.Create)
+		api.POST("/search", cc.Search)
+		api.PUT("/:id", cc.Update)
+		api.POST("/count", cc.Count)
+	}
+	// Legacy backward-compatible aliases
+	legacy := router.Group("/eChallan/v1")
+	{
+		legacy.POST("/_create", cc.Create)
+		legacy.POST("/_search", cc.Search)
+		legacy.POST("/_update", cc.Update)
+		legacy.POST("/_count", cc.Count)
 	}
 }
 

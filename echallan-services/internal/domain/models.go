@@ -99,25 +99,169 @@ type ChallanResponse struct {
 }
 
 type Challan struct {
-	Id                  string          `json:"id,omitempty" db:"id"`
-	TenantId            string          `json:"tenantId" db:"tenantid"`
-	BusinessService     string          `json:"businessService" db:"businessservice"`
-	ChallanNo           string          `json:"challanNo,omitempty" db:"challanno"`
-	ReferenceId         string          `json:"referenceId,omitempty" db:"referenceid"`
-	Description         string          `json:"description,omitempty" db:"description"`
-	AccountId           string          `json:"accountId,omitempty" db:"accountid"`
-	AdditionalDetail    interface{}     `json:"additionalDetail,omitempty"`
-	Source              string          `json:"source,omitempty" db:"source"`
-	TaxPeriodFrom       int64           `json:"taxPeriodFrom" db:"taxperiodfrom"`
-	TaxPeriodTo         int64           `json:"taxPeriodTo" db:"taxperiodto"`
-	Calculation         interface{}     `json:"calculation,omitempty"`
-	Amount              []Amount        `json:"amount"`
-	Address             *Address        `json:"address" db:"-"`
-	Citizen             *UserInfo       `json:"citizen" db:"-"`
-	ApplicationStatus   string          `json:"applicationStatus,omitempty" db:"applicationstatus"`
-	Filestoreid         string          `json:"filestoreid,omitempty" db:"filestoreid"`
-	ReceiptNumber       string          `json:"receiptNumber,omitempty" db:"receiptnumber"`
-	AuditDetails        *AuditDetails   `json:"auditDetails,omitempty" db:"-"`
+	Id                  string          `json:"id,omitempty" db:"id" gorm:"column:id;primaryKey"`
+	TenantId            string          `json:"tenantId" db:"tenantid" gorm:"column:tenantid"`
+	BusinessService     string          `json:"businessService" db:"businessservice" gorm:"column:businessservice"`
+	ChallanNo           string          `json:"challanNo,omitempty" db:"challanno" gorm:"column:challanno"`
+	ReferenceId         string          `json:"referenceId,omitempty" db:"referenceid" gorm:"column:referenceid"`
+	Description         string          `json:"description,omitempty" db:"description" gorm:"column:description"`
+	AccountId           string          `json:"accountId,omitempty" db:"accountid" gorm:"column:accountid"`
+	AdditionalDetail    interface{}     `json:"additionalDetail,omitempty" gorm:"-"`
+	Source              string          `json:"source,omitempty" db:"source" gorm:"column:source"`
+	TaxPeriodFrom       int64           `json:"taxPeriodFrom" db:"taxperiodfrom" gorm:"column:taxperiodfrom"`
+	TaxPeriodTo         int64           `json:"taxPeriodTo" db:"taxperiodto" gorm:"column:taxperiodto"`
+	Calculation         interface{}     `json:"calculation,omitempty" gorm:"-"`
+	Amount              []Amount        `json:"amount" gorm:"-"`
+	Address             *Address        `json:"address" db:"-" gorm:"-"`
+	Citizen             *UserInfo       `json:"citizen" db:"-" gorm:"-"`
+	ApplicationStatus   string          `json:"applicationStatus,omitempty" db:"applicationstatus" gorm:"column:applicationstatus"`
+	Filestoreid         string          `json:"filestoreid,omitempty" db:"filestoreid" gorm:"column:filestoreid"`
+	ReceiptNumber       string          `json:"receiptNumber,omitempty" db:"receiptnumber" gorm:"column:receiptnumber"`
+	AuditDetails        *AuditDetails   `json:"auditDetails,omitempty" db:"-" gorm:"-"`
+}
+
+type ChallanDB struct {
+	Id                string             `json:"id,omitempty" gorm:"column:id;primaryKey"`
+	TenantId          string             `json:"tenantId" gorm:"column:tenantid"`
+	BusinessService   string             `json:"businessService" gorm:"column:businessservice"`
+	ChallanNo         string             `json:"challanNo,omitempty" gorm:"column:challanno"`
+	ReferenceId       string             `json:"referenceId,omitempty" gorm:"column:referenceid"`
+	Description       string             `json:"description,omitempty" gorm:"column:description"`
+	AccountId         string             `json:"accountId,omitempty" gorm:"column:accountid"`
+	Source            string             `json:"source,omitempty" gorm:"column:source"`
+	TaxPeriodFrom     int64              `json:"taxPeriodFrom" gorm:"column:taxperiodfrom"`
+	TaxPeriodTo       int64              `json:"taxPeriodTo" gorm:"column:taxperiodto"`
+	ApplicationStatus string             `json:"applicationStatus,omitempty" gorm:"column:applicationstatus"`
+	Filestoreid       string             `json:"filestoreid,omitempty" gorm:"column:filestoreid"`
+	ReceiptNumber     string             `json:"receiptNumber,omitempty" gorm:"column:receiptnumber"`
+	CreatedBy         string             `gorm:"column:createdby"`
+	LastModifiedBy    string             `gorm:"column:lastmodifiedby"`
+	CreatedTime       int64              `gorm:"column:createdtime"`
+	LastModifiedTime  int64              `gorm:"column:lastmodifiedtime"`
+	Amounts           []ChallanAmountDB  `gorm:"foreignKey:EchallanId;references:Id"`
+	AddressDB         *ChallanAddressDB  `gorm:"foreignKey:EchallanId;references:Id"`
+}
+
+func (ChallanDB) TableName() string { return "eg_echallan" }
+
+type ChallanAmountDB struct {
+	Id          string  `gorm:"column:id;primaryKey"`
+	EchallanId  string  `gorm:"column:echallanid"`
+	TaxHeadCode string  `gorm:"column:taxheadcode"`
+	Amount      float64 `gorm:"column:amount"`
+}
+
+func (ChallanAmountDB) TableName() string { return "eg_challan_amount" }
+
+type ChallanAddressDB struct {
+	Id           string  `gorm:"column:id;primaryKey"`
+	EchallanId   string  `gorm:"column:echallanid"`
+	DoorNo       string  `gorm:"column:doorno"`
+	BuildingName string  `gorm:"column:buildingname"`
+	Street       string  `gorm:"column:street"`
+	City         string  `gorm:"column:city"`
+	Pincode      string  `gorm:"column:pincode"`
+	Latitude     float64 `gorm:"column:latitude"`
+	Longitude    float64 `gorm:"column:longitude"`
+	LocalityCode string  `gorm:"column:locality_code"`
+}
+
+func (ChallanAddressDB) TableName() string { return "eg_challan_address" }
+
+func (db *ChallanDB) ToChallan() *Challan {
+	c := &Challan{
+		Id:                db.Id,
+		TenantId:          db.TenantId,
+		BusinessService:   db.BusinessService,
+		ChallanNo:         db.ChallanNo,
+		ReferenceId:       db.ReferenceId,
+		Description:       db.Description,
+		AccountId:         db.AccountId,
+		Source:            db.Source,
+		TaxPeriodFrom:     db.TaxPeriodFrom,
+		TaxPeriodTo:       db.TaxPeriodTo,
+		ApplicationStatus: db.ApplicationStatus,
+		Filestoreid:       db.Filestoreid,
+		ReceiptNumber:     db.ReceiptNumber,
+		AuditDetails: &AuditDetails{
+			CreatedBy:        db.CreatedBy,
+			LastModifiedBy:   db.LastModifiedBy,
+			CreatedTime:      db.CreatedTime,
+			LastModifiedTime: db.LastModifiedTime,
+		},
+	}
+	for _, amt := range db.Amounts {
+		c.Amount = append(c.Amount, Amount{
+			TaxHeadCode: amt.TaxHeadCode,
+			Amount:      amt.Amount,
+		})
+	}
+	if db.AddressDB != nil {
+		c.Address = &Address{
+			DoorNo:       db.AddressDB.DoorNo,
+			BuildingName: db.AddressDB.BuildingName,
+			Street:       db.AddressDB.Street,
+			City:         db.AddressDB.City,
+			Pincode:      db.AddressDB.Pincode,
+			Locality: &Boundary{
+				Code: db.AddressDB.LocalityCode,
+			},
+			GeoLocation: &GeoLocation{
+				Latitude:  db.AddressDB.Latitude,
+				Longitude: db.AddressDB.Longitude,
+			},
+		}
+	}
+	return c
+}
+
+func (c *Challan) ToChallanDB() ChallanDB {
+	db := ChallanDB{
+		Id:                c.Id,
+		TenantId:          c.TenantId,
+		BusinessService:   c.BusinessService,
+		ChallanNo:         c.ChallanNo,
+		ReferenceId:       c.ReferenceId,
+		Description:       c.Description,
+		AccountId:         c.AccountId,
+		Source:            c.Source,
+		TaxPeriodFrom:     c.TaxPeriodFrom,
+		TaxPeriodTo:       c.TaxPeriodTo,
+		ApplicationStatus: c.ApplicationStatus,
+		Filestoreid:       c.Filestoreid,
+		ReceiptNumber:     c.ReceiptNumber,
+	}
+	if c.AuditDetails != nil {
+		db.CreatedBy = c.AuditDetails.CreatedBy
+		db.LastModifiedBy = c.AuditDetails.LastModifiedBy
+		db.CreatedTime = c.AuditDetails.CreatedTime
+		db.LastModifiedTime = c.AuditDetails.LastModifiedTime
+	}
+	for _, amt := range c.Amount {
+		db.Amounts = append(db.Amounts, ChallanAmountDB{
+			EchallanId:  c.Id,
+			TaxHeadCode: amt.TaxHeadCode,
+			Amount:      amt.Amount,
+		})
+	}
+	if c.Address != nil {
+		db.AddressDB = &ChallanAddressDB{
+			EchallanId:   c.Id,
+			DoorNo:       c.Address.DoorNo,
+			BuildingName: c.Address.BuildingName,
+			Street:       c.Address.Street,
+			City:         c.Address.City,
+			Pincode:      c.Address.Pincode,
+		}
+		if c.Address.Locality != nil {
+			db.AddressDB.LocalityCode = c.Address.Locality.Code
+		}
+		if c.Address.GeoLocation != nil {
+			db.AddressDB.Latitude = c.Address.GeoLocation.Latitude
+			db.AddressDB.Longitude = c.Address.GeoLocation.Longitude
+		}
+	}
+	return db
 }
 
 type Amount struct {

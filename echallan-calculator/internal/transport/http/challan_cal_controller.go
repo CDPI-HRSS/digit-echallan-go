@@ -18,11 +18,19 @@ func NewChallanCalController(calcService *service.CalculationService) *ChallanCa
 	}
 }
 
-func (ctrl *ChallanCalController) RegisterRoutes(r *gin.Engine, contextPath string) {
-	group := r.Group(contextPath)
+func (ctrl *ChallanCalController) RegisterRoutes(r *gin.Engine, contextPath string, authMiddleware gin.HandlerFunc) {
+	// New RESTful routes (protected)
+	api := r.Group("/api/v1/challans")
+	api.Use(authMiddleware)
 	{
-		group.POST("/_calculate", ctrl.Calculate)
-		group.POST("/_calculate/:servicename", ctrl.Calculate)
+		api.POST("/calculate", ctrl.Calculate)
+		api.POST("/calculate/:servicename", ctrl.Calculate)
+	}
+	// Legacy backward-compatible aliases (unprotected for backward compat)
+	legacy := r.Group(contextPath)
+	{
+		legacy.POST("/_calculate", ctrl.Calculate)
+		legacy.POST("/_calculate/:servicename", ctrl.Calculate)
 	}
 }
 
