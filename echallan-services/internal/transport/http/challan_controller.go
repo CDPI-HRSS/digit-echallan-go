@@ -42,8 +42,9 @@ func (cc *ChallanController) Create(c *gin.Context) {
 	var req domain.ChallanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "INVALID_REQUEST",
-			Message: "Failed to parse JSON payload",
+			Code:        "VALIDATION_ERROR",
+			Message:     "Invalid request payload",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -51,8 +52,9 @@ func (cc *ChallanController) Create(c *gin.Context) {
 	challan, err := cc.challanService.Create(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "CREATE_ERROR",
-			Message: err.Error(),
+			Code:        "CREATE_ERROR",
+			Message:     "Failed to create challan",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -68,8 +70,9 @@ func (cc *ChallanController) Search(c *gin.Context) {
 	var req domain.RequestInfoWrapper
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "INVALID_REQUEST",
-			Message: "Failed to parse JSON payload",
+			Code:        "VALIDATION_ERROR",
+			Message:     "Invalid request payload",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -77,16 +80,18 @@ func (cc *ChallanController) Search(c *gin.Context) {
 	var criteria domain.SearchCriteria
 	if err := c.ShouldBindQuery(&criteria); err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "INVALID_QUERY",
-			Message: "Failed to parse query parameters",
+			Code:        "VALIDATION_ERROR",
+			Message:     "Failed to parse query parameters",
+			Description: err.Error(),
 		})
 		return
 	}
 
 	if criteria.TenantId == "" {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "INVALID_SEARCH",
-			Message: "tenantId is mandatory for searching",
+			Code:        "INVALID_SEARCH",
+			Message:     "tenantId is mandatory for searching",
+			Description: "tenantId query parameter is empty",
 		})
 		return
 	}
@@ -94,8 +99,9 @@ func (cc *ChallanController) Search(c *gin.Context) {
 	challans, totalCount, err := cc.challanService.Search(criteria, req.RequestInfo)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "SEARCH_ERROR",
-			Message: err.Error(),
+			Code:        "SEARCH_ERROR",
+			Message:     "Failed to search challans",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -112,8 +118,9 @@ func (cc *ChallanController) Update(c *gin.Context) {
 	var req domain.ChallanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "INVALID_REQUEST",
-			Message: "Failed to parse JSON payload",
+			Code:        "VALIDATION_ERROR",
+			Message:     "Invalid request payload",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -121,8 +128,9 @@ func (cc *ChallanController) Update(c *gin.Context) {
 	challan, err := cc.challanService.Update(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "UPDATE_ERROR",
-			Message: err.Error(),
+			Code:        "UPDATE_ERROR",
+			Message:     "Failed to update challan",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -139,8 +147,9 @@ func (cc *ChallanController) Count(c *gin.Context) {
 	var req domain.RequestInfoWrapper
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "INVALID_REQUEST",
-			Message: "Failed to parse JSON payload",
+			Code:        "VALIDATION_ERROR",
+			Message:     "Invalid request payload",
+			Description: err.Error(),
 		})
 		return
 	}
@@ -152,8 +161,9 @@ func (cc *ChallanController) Count(c *gin.Context) {
 	countRes, err := cc.challanService.Count(tenantId, &reqInfo)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
-			Code:    "COUNT_ERROR",
-			Message: err.Error(),
+			Code:        "COUNT_ERROR",
+			Message:     "Failed to count challans",
+			Description: err.Error(),
 		})
 		return
 	}

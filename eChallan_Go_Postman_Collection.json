@@ -1,0 +1,256 @@
+{
+  "info": {
+    "name": "DIGIT eChallan Go Migration",
+    "description": "Complete test suite for the migrated echallan-services and echallan-calculator running on the Ubuntu VM.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "vm_ip",
+      "value": "20.244.28.96",
+      "type": "string"
+    },
+    {
+      "key": "services_port",
+      "value": "8082",
+      "type": "string"
+    },
+    {
+      "key": "calc_port",
+      "value": "8078",
+      "type": "string"
+    },
+    {
+      "key": "challanNo",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check (Services)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{vm_ip}}:{{services_port}}/echallan-services/health",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{services_port}}",
+          "path": [
+            "echallan-services",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Challan",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.challans && jsonData.challans.length > 0) {",
+              "    pm.collectionVariables.set(\"challanNo\", jsonData.challans[0].challanNo);",
+              "    console.log(\"Saved challanNo to variables: \" + jsonData.challans[0].challanNo);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"org.egov.echallan\",\n    \"ver\": \"1.0\",\n    \"ts\": 1716969600000,\n    \"action\": \"_create\",\n    \"msgId\": \"create-test-001\",\n    \"authToken\": \"test-auth-token\",\n    \"userInfo\": {\n      \"tenantId\": \"pb.amritsar\",\n      \"uuid\": \"e4fd96d4-b181-4bae-9c4a-7e8b6e6e1e3f\",\n      \"userName\": \"ECHALLAN_OFFICER_01\",\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [{\"name\": \"eChallan Creator\", \"code\": \"ECHALLAN_CREATOR\", \"tenantId\": \"pb.amritsar\"}]\n    }\n  },\n  \"challan\": {\n    \"tenantId\": \"pb.amritsar\",\n    \"businessService\": \"ECHALLAN\",\n    \"referenceId\": \"VEH-PB10AB1234\",\n    \"description\": \"No helmet - GT Road near Hall Gate\",\n    \"accountId\": \"ACC-PB-AMR-2026-0001\",\n    \"source\": \"FIELD_SURVEY\",\n    \"taxPeriodFrom\": 1716940800000,\n    \"taxPeriodTo\": 1719619200000,\n    \"amount\": [\n      {\"taxHeadCode\": \"CHALLAN_FEE\", \"amount\": 500.00},\n      {\"taxHeadCode\": \"CHALLAN_PENALTY\", \"amount\": 200.00}\n    ],\n    \"address\": {\n      \"tenantId\": \"pb.amritsar\",\n      \"city\": \"Amritsar\",\n      \"pincode\": \"143001\",\n      \"street\": \"GT Road\",\n      \"locality\": {\"code\": \"SUN04\", \"name\": \"Ward 4\"}\n    },\n    \"citizen\": {\n      \"tenantId\": \"pb.amritsar\",\n      \"uuid\": \"a3c4d5e6-f7a8-4b9c-0d1e-2f3a4b5c6d7e\",\n      \"userName\": \"9876543210\",\n      \"type\": \"CITIZEN\"\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "http://{{vm_ip}}:{{services_port}}/eChallan/v1/_create",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{services_port}}",
+          "path": [
+            "eChallan",
+            "v1",
+            "_create"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Search Challan",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"org.egov.echallan\",\n    \"ver\": \"1.0\",\n    \"ts\": 1716969600000,\n    \"msgId\": \"search-test-001\",\n    \"userInfo\": {\"tenantId\": \"pb.amritsar\", \"uuid\": \"test-uuid-001\"}\n  }\n}"
+        },
+        "url": {
+          "raw": "http://{{vm_ip}}:{{services_port}}/eChallan/v1/_search?tenantId=pb.amritsar&limit=10&offset=0",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{services_port}}",
+          "path": [
+            "eChallan",
+            "v1",
+            "_search"
+          ],
+          "query": [
+            {
+              "key": "tenantId",
+              "value": "pb.amritsar"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Update Challan (PAID)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"org.egov.echallan\",\n    \"ver\": \"1.0\",\n    \"ts\": 1716969600000,\n    \"action\": \"_update\",\n    \"msgId\": \"update-paid-001\",\n    \"userInfo\": {\n      \"tenantId\": \"pb.amritsar\",\n      \"uuid\": \"test-uuid-001\",\n      \"roles\": [{\"code\": \"ECHALLAN_ADMIN\", \"tenantId\": \"pb.amritsar\"}]\n    }\n  },\n  \"challan\": {\n    \"challanNo\": \"{{challanNo}}\",\n    \"tenantId\": \"pb.amritsar\",\n    \"businessService\": \"ECHALLAN\",\n    \"applicationStatus\": \"PAID\",\n    \"taxPeriodFrom\": 1716940800000,\n    \"taxPeriodTo\": 1719619200000,\n    \"amount\": [{\"taxHeadCode\": \"CHALLAN_FEE\", \"amount\": 500.00}]\n  }\n}"
+        },
+        "url": {
+          "raw": "http://{{vm_ip}}:{{services_port}}/eChallan/v1/_update",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{services_port}}",
+          "path": [
+            "eChallan",
+            "v1",
+            "_update"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Count Challans",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"apiId\": \"org.egov.echallan\",\n  \"ver\": \"1.0\",\n  \"ts\": 1716969600000,\n  \"msgId\": \"count-test-001\"\n}"
+        },
+        "url": {
+          "raw": "http://{{vm_ip}}:{{services_port}}/eChallan/v1/_count?tenantId=pb.amritsar",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{services_port}}",
+          "path": [
+            "eChallan",
+            "v1",
+            "_count"
+          ],
+          "query": [
+            {
+              "key": "tenantId",
+              "value": "pb.amritsar"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Health Check (Calculator)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{vm_ip}}:{{calc_port}}/echallan-calculator/health",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{calc_port}}",
+          "path": [
+            "echallan-calculator",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Calculate Penalty",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"org.egov.echallan\",\n    \"ver\": \"1.0\",\n    \"ts\": 1716969600000,\n    \"action\": \"_calculate\",\n    \"msgId\": \"calc-test-001\",\n    \"userInfo\": {\"tenantId\": \"pb.amritsar\", \"uuid\": \"test-uuid\"}\n  },\n  \"CalulationCriteria\": [\n    {\n      \"tenantId\": \"pb.amritsar\",\n      \"challan\": {\n        \"tenantId\": \"pb.amritsar\",\n        \"challanNo\": \"{{challanNo}}\",\n        \"businessService\": \"ECHALLAN\",\n        \"applicationStatus\": \"ACTIVE\",\n        \"amount\": [\n          {\"taxHeadCode\": \"CHALLAN_FEE\", \"amount\": 500.00},\n          {\"taxHeadCode\": \"CHALLAN_PENALTY\", \"amount\": 200.00}\n        ]\n      }\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://{{vm_ip}}:{{calc_port}}/echallan-calculator/v1/_calculate",
+          "protocol": "http",
+          "host": [
+            "{{vm_ip}}"
+          ],
+          "port": "{{calc_port}}",
+          "path": [
+            "echallan-calculator",
+            "v1",
+            "_calculate"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

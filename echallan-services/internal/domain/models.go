@@ -85,8 +85,8 @@ type RequestInfoWrapper struct {
 }
 
 type ChallanRequest struct {
-	RequestInfo *RequestInfo `json:"RequestInfo"`
-	Challan     *Challan     `json:"challan"`
+	RequestInfo *RequestInfo `json:"RequestInfo" binding:"required"`
+	Challan     *Challan     `json:"challan" binding:"required"`
 }
 
 type ChallanResponse struct {
@@ -100,20 +100,20 @@ type ChallanResponse struct {
 
 type Challan struct {
 	Id                  string          `json:"id,omitempty" db:"id" gorm:"column:id;primaryKey"`
-	TenantId            string          `json:"tenantId" db:"tenantid" gorm:"column:tenantid"`
-	BusinessService     string          `json:"businessService" db:"businessservice" gorm:"column:businessservice"`
+	TenantId            string          `json:"tenantId" db:"tenantid" gorm:"column:tenantid" binding:"required"`
+	BusinessService     string          `json:"businessService" db:"businessservice" gorm:"column:businessservice" binding:"required"`
 	ChallanNo           string          `json:"challanNo,omitempty" db:"challanno" gorm:"column:challanno"`
 	ReferenceId         string          `json:"referenceId,omitempty" db:"referenceid" gorm:"column:referenceid"`
 	Description         string          `json:"description,omitempty" db:"description" gorm:"column:description"`
 	AccountId           string          `json:"accountId,omitempty" db:"accountid" gorm:"column:accountid"`
 	AdditionalDetail    interface{}     `json:"additionalDetail,omitempty" gorm:"-"`
 	Source              string          `json:"source,omitempty" db:"source" gorm:"column:source"`
-	TaxPeriodFrom       int64           `json:"taxPeriodFrom" db:"taxperiodfrom" gorm:"column:taxperiodfrom"`
-	TaxPeriodTo         int64           `json:"taxPeriodTo" db:"taxperiodto" gorm:"column:taxperiodto"`
+	TaxPeriodFrom       int64           `json:"taxPeriodFrom" db:"taxperiodfrom" gorm:"column:taxperiodfrom" binding:"required,gt=0"`
+	TaxPeriodTo         int64           `json:"taxPeriodTo" db:"taxperiodto" gorm:"column:taxperiodto" binding:"required,gt=0"`
 	Calculation         interface{}     `json:"calculation,omitempty" gorm:"-"`
 	Amount              []Amount        `json:"amount" gorm:"-"`
-	Address             *Address        `json:"address" db:"-" gorm:"-"`
-	Citizen             *UserInfo       `json:"citizen" db:"-" gorm:"-"`
+	Address             *Address        `json:"address" db:"-" gorm:"-" binding:"required"`
+	Citizen             *UserInfo       `json:"citizen" db:"-" gorm:"-" binding:"required"`
 	ApplicationStatus   string          `json:"applicationStatus,omitempty" db:"applicationstatus" gorm:"column:applicationstatus"`
 	Filestoreid         string          `json:"filestoreid,omitempty" db:"filestoreid" gorm:"column:filestoreid"`
 	ReceiptNumber       string          `json:"receiptNumber,omitempty" db:"receiptnumber" gorm:"column:receiptnumber"`

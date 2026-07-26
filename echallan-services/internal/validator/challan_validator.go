@@ -21,26 +21,7 @@ func NewChallanValidator(mdmsRepo *http.MdmsRepository, locRepo *http.LocationRe
 }
 
 func (v *ChallanValidator) ValidateCreateRequest(req *domain.ChallanRequest) error {
-	if req == nil || req.Challan == nil {
-		return fmt.Errorf("Challan object is missing from request payload")
-	}
 	challan := req.Challan
-
-	if challan.TenantId == "" {
-		return fmt.Errorf("TenantId is mandatory")
-	}
-	if challan.BusinessService == "" {
-		return fmt.Errorf("BusinessService is mandatory")
-	}
-	if challan.Citizen == nil || challan.Citizen.MobileNumber == "" {
-		return fmt.Errorf("Mobile Number cannot be null")
-	}
-	if challan.TaxPeriodFrom == 0 {
-		return fmt.Errorf("From date cannot be null")
-	}
-	if challan.TaxPeriodTo == 0 {
-		return fmt.Errorf("To date cannot be null")
-	}
 
 	// 1. Amount validations
 	totalAmt := 0.0
@@ -130,9 +111,6 @@ func (v *ChallanValidator) ValidateCreateRequest(req *domain.ChallanRequest) err
 }
 
 func (v *ChallanValidator) ValidateUpdateRequest(req *domain.ChallanRequest, searchResult []*domain.Challan) error {
-	if req == nil || req.Challan == nil {
-		return fmt.Errorf("Challan object is missing from request payload")
-	}
 	challan := req.Challan
 
 	if len(searchResult) == 0 {

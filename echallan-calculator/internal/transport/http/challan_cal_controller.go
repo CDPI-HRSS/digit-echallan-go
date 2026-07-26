@@ -40,7 +40,7 @@ func (ctrl *ChallanCalController) Calculate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.ErrorRes{
 			Errors: []domain.Error{
 				{
-					Code:        "INVALID_REQUEST",
+					Code:        "VALIDATION_ERROR",
 					Message:     "Failed to parse request JSON",
 					Description: err.Error(),
 				},

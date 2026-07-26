@@ -201,7 +201,7 @@ type ChallanResponse struct {
 type CalculationCriteria struct {
 	Challan   *Challan `json:"challan,omitempty"`
 	ChallanNo string   `json:"challanNo,omitempty"`
-	TenantId  string   `json:"tenantId"`
+	TenantId  string   `json:"tenantId" binding:"required"`
 }
 
 type TaxHeadEstimate struct {
@@ -218,8 +218,8 @@ type Calculation struct {
 }
 
 type CalculationReq struct {
-	RequestInfo        *RequestInfo         `json:"RequestInfo"`
-	CalculationCriteria []CalculationCriteria `json:"CalculationCriteria"`
+	RequestInfo        *RequestInfo         `json:"RequestInfo" binding:"required"`
+	CalculationCriteria []CalculationCriteria `json:"CalculationCriteria" binding:"required"`
 }
 
 type CalculationRes struct {
