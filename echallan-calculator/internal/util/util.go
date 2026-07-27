@@ -1,13 +1,14 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"time"
 
-	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/repository/http"
+	"github.com/CDPI-HRSS/echallan-calculator/configs"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/domain"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/repository/http"
 )
 
 type CalculationUtils struct {
@@ -74,7 +75,7 @@ func (u *CalculationUtils) GetAuditDetails(by string, isCreate bool) *domain.Aud
 	}
 }
 
-func (u *CalculationUtils) GetChallan(requestInfo *domain.RequestInfo, challanNo, tenantId string) (*domain.Challan, error) {
+func (u *CalculationUtils) GetChallan(ctx context.Context, requestInfo *domain.RequestInfo, challanNo, tenantId string) (*domain.Challan, error) {
 	url := u.GetChallanSearchURL(tenantId, challanNo)
 
 	wrapper := domain.RequestInfoWrapper{
@@ -82,7 +83,7 @@ func (u *CalculationUtils) GetChallan(requestInfo *domain.RequestInfo, challanNo
 	}
 
 	var response domain.ChallanResponse
-	err := u.srRepo.FetchResult(url, wrapper, &response)
+	err := u.srRepo.FetchResult(ctx, url, wrapper, &response)
 	if err != nil {
 		return nil, err
 	}

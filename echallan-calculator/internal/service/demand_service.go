@@ -1,14 +1,15 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/repository/http"
-	"github.com/CDPI-HRSS/calci_sp/internal/util"
+	"github.com/CDPI-HRSS/echallan-calculator/configs"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/domain"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/repository/http"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/util"
 	"github.com/shopspring/decimal"
 )
 
@@ -30,7 +31,7 @@ func NewDemandService(cfg *configs.Config, utils *util.CalculationUtils, srRepo 
 	}
 }
 
-func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculations []domain.Calculation, businessService string) error {
+func (s *DemandService) GenerateDemand(ctx context.Context, requestInfo *domain.RequestInfo, calculations []domain.Calculation, businessService string) error {
 	if len(calculations) == 0 {
 		return nil
 	}
@@ -46,7 +47,7 @@ func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculat
 		}
 	}
 
-	demands, err := s.SearchDemand(tenantId, consumerCodes, requestInfo, businessService)
+	demands, err := s.SearchDemand(ctx, tenantId, consumerCodes, requestInfo, businessService)
 	if err != nil {
 		return fmt.Errorf("failed to search demands: %w", err)
 	}
@@ -71,14 +72,14 @@ func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculat
 	}
 
 	if len(createCalculations) > 0 {
-		_, err := s.createDemand(requestInfo, createCalculations)
+		_, err := s.createDemand(ctx, requestInfo, createCalculations)
 		if err != nil {
 			return fmt.Errorf("failed to create demands: %w", err)
 		}
 	}
 
 	if len(updateCalculations) > 0 {
-		_, err := s.updateDemand(requestInfo, updateCalculations, businessService)
+		_, err := s.updateDemand(ctx, requestInfo, updateCalculations, businessService)
 		if err != nil {
 			return fmt.Errorf("failed to update demands: %w", err)
 		}
@@ -91,7 +92,7 @@ func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculat
 				ConsumerCode:    calc.Challan.ChallanNo,
 				BusinessService: businessService,
 			}
-			_, err := s.GenerateBill(requestInfo, billCriteria)
+			_, err := s.GenerateBill(ctx, requestInfo, billCriteria)
 			if err != nil {
 				log.Printf("Warning: failed to generate bill for %s: %v\n", calc.Challan.ChallanNo, err)
 				return fmt.Errorf("failed to generate bill: %w", err)
@@ -102,13 +103,13 @@ func (s *DemandService) GenerateDemand(requestInfo *domain.RequestInfo, calculat
 	return nil
 }
 
-func (s *DemandService) createDemand(requestInfo *domain.RequestInfo, calculations []domain.Calculation) ([]domain.Demand, error) {
+func (s *DemandService) createDemand(ctx context.Context, requestInfo *domain.RequestInfo, calculations []domain.Calculation) ([]domain.Demand, error) {
 	var demands []domain.Demand
 	for _, calc := range calculations {
 		challan := calc.Challan
 		if challan == nil && calc.ChallanNo != "" {
 			var err error
-			challan, err = s.utils.GetChallan(requestInfo, calc.ChallanNo, calc.TenantId)
+			challan, err = s.utils.GetChallan(ctx, requestInfo, calc.ChallanNo, calc.TenantId)
 			if err != nil {
 				return nil, err
 			}
@@ -157,10 +158,10 @@ func (s *DemandService) createDemand(requestInfo *domain.RequestInfo, calculatio
 		demands = append(demands, singleDemand)
 	}
 
-	return s.demandRepo.SaveDemand(requestInfo, demands)
+	return s.demandRepo.SaveDemand(ctx, requestInfo, demands)
 }
 
-func (s *DemandService) updateDemand(requestInfo *domain.RequestInfo, calculations []domain.Calculation, businessService string) ([]domain.Demand, error) {
+func (s *DemandService) updateDemand(ctx context.Context, requestInfo *domain.RequestInfo, calculations []domain.Calculation, businessService string) ([]domain.Demand, error) {
 	var demands []domain.Demand
 	for _, calc := range calculations {
 		challan := calc.Challan
@@ -168,7 +169,7 @@ func (s *DemandService) updateDemand(requestInfo *domain.RequestInfo, calculatio
 			return nil, fmt.Errorf("challan is nil in update calculation")
 		}
 
-		searchResult, err := s.SearchDemand(calc.TenantId, []string{challan.ChallanNo}, requestInfo, businessService)
+		searchResult, err := s.SearchDemand(ctx, calc.TenantId, []string{challan.ChallanNo}, requestInfo, businessService)
 		if err != nil {
 			return nil, err
 		}
@@ -187,10 +188,10 @@ func (s *DemandService) updateDemand(requestInfo *domain.RequestInfo, calculatio
 		demands = append(demands, demand)
 	}
 
-	return s.demandRepo.UpdateDemand(requestInfo, demands)
+	return s.demandRepo.UpdateDemand(ctx, requestInfo, demands)
 }
 
-func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, requestInfo *domain.RequestInfo, businessService string) ([]domain.Demand, error) {
+func (s *DemandService) SearchDemand(ctx context.Context, tenantId string, consumerCodes []string, requestInfo *domain.RequestInfo, businessService string) ([]domain.Demand, error) {
 	if len(consumerCodes) == 0 {
 		return nil, nil
 	}
@@ -203,7 +204,7 @@ func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, re
 	}
 
 	var response domain.DemandResponse
-	err := s.srRepo.FetchResult(url, wrapper, &response)
+	err := s.srRepo.FetchResult(ctx, url, wrapper, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -211,8 +212,8 @@ func (s *DemandService) SearchDemand(tenantId string, consumerCodes []string, re
 	return response.Demands, nil
 }
 
-func (s *DemandService) GenerateBill(requestInfo *domain.RequestInfo, billCriteria domain.GenerateBillCriteria) (*domain.BillResponse, error) {
-	demands, err := s.SearchDemand(billCriteria.TenantId, []string{billCriteria.ConsumerCode}, requestInfo, billCriteria.BusinessService)
+func (s *DemandService) GenerateBill(ctx context.Context, requestInfo *domain.RequestInfo, billCriteria domain.GenerateBillCriteria) (*domain.BillResponse, error) {
+	demands, err := s.SearchDemand(ctx, billCriteria.TenantId, []string{billCriteria.ConsumerCode}, requestInfo, billCriteria.BusinessService)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +229,7 @@ func (s *DemandService) GenerateBill(requestInfo *domain.RequestInfo, billCriter
 	}
 
 	var response domain.BillResponse
-	err = s.srRepo.FetchResult(url, wrapper, &response)
+	err = s.srRepo.FetchResult(ctx, url, wrapper, &response)
 	if err != nil {
 		return nil, err
 	}

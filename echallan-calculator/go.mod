@@ -1,4 +1,4 @@
-module github.com/CDPI-HRSS/calci_sp
+module github.com/CDPI-HRSS/echallan-calculator
 
 go 1.25.0
 

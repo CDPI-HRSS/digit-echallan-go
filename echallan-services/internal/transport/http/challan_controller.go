@@ -49,7 +49,8 @@ func (cc *ChallanController) Create(c *gin.Context) {
 		return
 	}
 
-	challan, err := cc.challanService.Create(&req)
+	ctx := c.Request.Context()
+	challan, err := cc.challanService.Create(ctx, &req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
 			Code:        "CREATE_ERROR",
@@ -96,7 +97,8 @@ func (cc *ChallanController) Search(c *gin.Context) {
 		return
 	}
 
-	challans, totalCount, err := cc.challanService.Search(criteria, req.RequestInfo)
+	ctx := c.Request.Context()
+	challans, totalCount, err := cc.challanService.Search(ctx, criteria, req.RequestInfo)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
 			Code:        "SEARCH_ERROR",
@@ -125,7 +127,8 @@ func (cc *ChallanController) Update(c *gin.Context) {
 		return
 	}
 
-	challan, err := cc.challanService.Update(&req)
+	ctx := c.Request.Context()
+	challan, err := cc.challanService.Update(ctx, &req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
 			Code:        "UPDATE_ERROR",
@@ -158,7 +161,8 @@ func (cc *ChallanController) Count(c *gin.Context) {
 		reqInfo = *req.RequestInfo
 	}
 
-	countRes, err := cc.challanService.Count(tenantId, &reqInfo)
+	ctx := c.Request.Context()
+	countRes, err := cc.challanService.Count(ctx, tenantId, &reqInfo)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.Error{
 			Code:        "COUNT_ERROR",

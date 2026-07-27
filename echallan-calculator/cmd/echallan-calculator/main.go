@@ -14,13 +14,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	config "github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/middleware"
-	httprepo "github.com/CDPI-HRSS/calci_sp/internal/repository/http"
-	"github.com/CDPI-HRSS/calci_sp/internal/service"
-	httptransport "github.com/CDPI-HRSS/calci_sp/internal/transport/http"
-	"github.com/CDPI-HRSS/calci_sp/internal/util"
-	"github.com/CDPI-HRSS/calci_sp/internal/validator"
+	config "github.com/CDPI-HRSS/echallan-calculator/configs"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/middleware"
+	httprepo "github.com/CDPI-HRSS/echallan-calculator/internal/repository/http"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/service"
+	httptransport "github.com/CDPI-HRSS/echallan-calculator/internal/transport/http"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/util"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/validator"
 )
 
 func main() {
@@ -49,7 +49,10 @@ func main() {
 	r.Use(ginzap.RecoveryWithZap(logger, true))
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOriginFunc: func(origin string) bool {
+			// In production, validate against exact domain or regex
+			return origin == "http://localhost:3000" || origin == "https://digit.org" || origin == "http://localhost:8080"
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

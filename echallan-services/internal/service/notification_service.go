@@ -2,9 +2,9 @@ package service
 
 import (
 	"encoding/json"
-	"go.uber.org/zap"
 	"fmt"
-	"log"
+
+	"go.uber.org/zap"
 
 	config "github.com/CDPI-HRSS/echallan-services/configs"
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
@@ -16,19 +16,21 @@ type NotificationService struct {
 	cfg      *config.Config
 	producer *kafka.Producer
 	mdmsRepo *http.MdmsRepository
+	logger   *zap.Logger
 }
 
-func NewNotificationService(cfg *config.Config, producer *kafka.Producer, mdmsRepo *http.MdmsRepository) *NotificationService {
+func NewNotificationService(cfg *config.Config, producer *kafka.Producer, mdmsRepo *http.MdmsRepository, logger *zap.Logger) *NotificationService {
 	return &NotificationService{
 		cfg:      cfg,
 		producer: producer,
 		mdmsRepo: mdmsRepo,
+		logger:   logger,
 	}
 }
 
 func (s *NotificationService) SendNotifications(requestInfo *domain.RequestInfo, challan *domain.Challan, action string) {
 	if challan.Citizen == nil || challan.Citizen.MobileNumber == "" {
-		log.Printf("Cannot send notification: Missing citizen details for challan %s", challan.ChallanNo)
+		s.logger.Info("Cannot send notification: Missing citizen details for challan", zap.String("challanNo", challan.ChallanNo))
 		return
 	}
 
@@ -58,7 +60,7 @@ func (s *NotificationService) SendNotifications(requestInfo *domain.RequestInfo,
 			}
 		}
 	} else {
-		log.Printf("Warning: Failed to fetch ChannelList from MDMS, using defaults. Error: %v", err)
+		s.logger.Warn("Failed to fetch ChannelList from MDMS, using defaults", zap.Error(err))
 	}
 
 	msg := fmt.Sprintf("Dear Citizen, your Challan %s has been %s.", challan.ChallanNo, action)
@@ -131,16 +133,16 @@ func (s *NotificationService) SendNotifications(requestInfo *domain.RequestInfo,
 		_ = s.producer.Push(s.cfg.UserEventTopic, eventReq)
 	}
 
-	log.Printf("Successfully pushed notifications for challan %s", challan.ChallanNo)
+	s.logger.Info("Successfully pushed notifications for challan", zap.String("challanNo", challan.ChallanNo))
 }
 
 func (s *NotificationService) ProcessSaveChallan(payload map[string]interface{}) error {
-	log.Printf("Notification consumer received save-challan event")
+	s.logger.Info("Notification consumer received save-challan event")
 	return s.processChallanEvent(payload, "CREATED")
 }
 
 func (s *NotificationService) ProcessUpdateChallan(payload map[string]interface{}) error {
-	log.Printf("Notification consumer received update-challan event")
+	s.logger.Info("Notification consumer received update-challan event")
 	// Note: in Java it decides the action based on status (e.g. CANCELLED, PAID, UPDATED). We will just use UPDATED for simplicity or PAID if it's PAID.
 	return s.processChallanEvent(payload, "UPDATED")
 }
@@ -158,8 +160,8 @@ func (s *NotificationService) processChallanEvent(payload map[string]interface{}
 	var reqInfo domain.RequestInfo
 	var challan domain.Challan
 
-	if err := json.Unmarshal(reqInfoBytes, &reqInfo); err != nil { zap.L().Error("Failed to unmarshal RequestInfo", zap.Error(err)); return err }
-	if err := json.Unmarshal(challanBytes, &challan); err != nil { zap.L().Error("Failed to unmarshal Challan", zap.Error(err)); return err }
+	if err := json.Unmarshal(reqInfoBytes, &reqInfo); err != nil { s.logger.Error("Failed to unmarshal RequestInfo", zap.Error(err)); return err }
+	if err := json.Unmarshal(challanBytes, &challan); err != nil { s.logger.Error("Failed to unmarshal Challan", zap.Error(err)); return err }
 
 	action := defaultAction
 	if challan.ApplicationStatus == "PAID" {

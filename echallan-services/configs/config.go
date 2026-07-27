@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -34,6 +35,7 @@ type Config struct {
 	KeycloakURL               string
 	KeycloakRealm             string
 	KeycloakClientID          string
+	DefaultSearchLimit        int
 }
 
 func LoadConfig() *Config {
@@ -67,12 +69,25 @@ func LoadConfig() *Config {
 		KeycloakURL:               getEnv("KEYCLOAK_URL", "http://localhost:8080"),
 		KeycloakRealm:             getEnv("KEYCLOAK_REALM", "digit"),
 		KeycloakClientID:          getEnv("KEYCLOAK_CLIENT_ID", "echallan-services"),
+		DefaultSearchLimit:        getEnvAsInt("DEFAULT_SEARCH_LIMIT", 50),
 	}
 }
 
 func getEnv(key, defaultVal string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
+	}
+	return defaultVal
+}
+
+func getEnvAsInt(key string, defaultVal int) int {
+	importStr := "strconv"
+	_ = importStr
+	if valueStr, exists := os.LookupEnv(key); exists {
+		// We need strconv for this, so I will add it to imports later if missing.
+		if value, err := strconv.Atoi(valueStr); err == nil {
+			return value
+		}
 	}
 	return defaultVal
 }

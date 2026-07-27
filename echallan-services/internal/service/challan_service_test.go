@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -14,32 +15,32 @@ type MockChallanRepository struct {
 	mock.Mock
 }
 
-func (m *MockChallanRepository) Create(req *domain.ChallanRequest) (*domain.Challan, error) {
-	args := m.Called(req)
+func (m *MockChallanRepository) Create(ctx context.Context, req *domain.ChallanRequest) (*domain.Challan, error) {
+	args := m.Called(ctx, req)
 	if args.Get(0) != nil {
 		return args.Get(0).(*domain.Challan), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *MockChallanRepository) Search(criteria domain.SearchCriteria) ([]*domain.Challan, int, error) {
-	args := m.Called(criteria)
+func (m *MockChallanRepository) Search(ctx context.Context, criteria domain.SearchCriteria) ([]*domain.Challan, int, error) {
+	args := m.Called(ctx, criteria)
 	if args.Get(0) != nil {
 		return args.Get(0).([]*domain.Challan), args.Int(1), args.Error(2)
 	}
 	return nil, args.Int(1), args.Error(2)
 }
 
-func (m *MockChallanRepository) Update(req *domain.ChallanRequest) (*domain.Challan, error) {
-	args := m.Called(req)
+func (m *MockChallanRepository) Update(ctx context.Context, req *domain.ChallanRequest) (*domain.Challan, error) {
+	args := m.Called(ctx, req)
 	if args.Get(0) != nil {
 		return args.Get(0).(*domain.Challan), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *MockChallanRepository) Count(tenantId string) (map[string]int, error) {
-	args := m.Called(tenantId)
+func (m *MockChallanRepository) Count(ctx context.Context, tenantId string) (map[string]int, error) {
+	args := m.Called(ctx, tenantId)
 	if args.Get(0) != nil {
 		return args.Get(0).(map[string]int), args.Error(1)
 	}
@@ -85,7 +86,7 @@ func TestCreateChallan(t *testing.T) {
 			tt.mockSetup(mockRepo)
 
 			// Simulating the use case with the mock repository directly for this test
-			_, err := mockRepo.Create(tt.req)
+			_, err := mockRepo.Create(context.Background(), tt.req)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)

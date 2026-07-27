@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,21 +11,24 @@ import (
 
 	config "github.com/CDPI-HRSS/echallan-services/configs"
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
+	"go.uber.org/zap"
 )
 
 type UserRepository struct {
 	cfg    *config.Config
 	client *http.Client
+	logger *zap.Logger
 }
 
-func NewUserRepository(cfg *config.Config) *UserRepository {
+func NewUserRepository(cfg *config.Config, logger *zap.Logger) *UserRepository {
 	return &UserRepository{
 		cfg:    cfg,
 		client: &http.Client{Timeout: 10 * time.Second},
+		logger: logger,
 	}
 }
 
-func (r *UserRepository) SearchUsers(requestInfo *domain.RequestInfo, uuids []string) ([]domain.UserInfo, error) {
+func (r *UserRepository) SearchUsers(ctx context.Context, requestInfo *domain.RequestInfo, uuids []string) ([]domain.UserInfo, error) {
 	if len(uuids) == 0 {
 		return nil, nil
 	}
@@ -37,8 +41,9 @@ func (r *UserRepository) SearchUsers(requestInfo *domain.RequestInfo, uuids []st
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(bodyBytes))
 	if err != nil {
+		r.logger.Error("failed to create http request", zap.Error(err))
 		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -58,9 +63,8 @@ func (r *UserRepository) SearchUsers(requestInfo *domain.RequestInfo, uuids []st
 		User []domain.UserInfo `json:"user"`
 	}
 	respBody, _ := io.ReadAll(resp.Body)
-	fmt.Printf("USER REPO RAW JSON: %s\n", string(respBody))
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		fmt.Printf("USER REPO JSON ERROR: %v\n", err)
+		r.logger.Error("USER REPO JSON ERROR", zap.Error(err), zap.String("body", string(respBody)))
 		return nil, err
 	}
 
@@ -68,7 +72,7 @@ func (r *UserRepository) SearchUsers(requestInfo *domain.RequestInfo, uuids []st
 }
 
 
-func (r *UserRepository) CreateUser(requestInfo *domain.RequestInfo, user *domain.UserInfo) (*domain.UserInfo, error) {
+func (r *UserRepository) CreateUser(ctx context.Context, requestInfo *domain.RequestInfo, user *domain.UserInfo) (*domain.UserInfo, error) {
 	if user == nil {
 		return nil, nil
 	}
@@ -85,8 +89,9 @@ func (r *UserRepository) CreateUser(requestInfo *domain.RequestInfo, user *domai
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(bodyBytes))
 	if err != nil {
+		r.logger.Error("failed to create http request", zap.Error(err))
 		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")

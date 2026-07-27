@@ -1,28 +1,33 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/CDPI-HRSS/echallan-services/configs"
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type ChallanRepository interface {
-	Search(criteria domain.SearchCriteria) ([]*domain.Challan, int, error)
-	Count(tenantId string) (map[string]int, error)
+	Search(ctx context.Context, criteria domain.SearchCriteria) ([]*domain.Challan, int, error)
+	Count(ctx context.Context, tenantId string) (map[string]int, error)
 }
 
 type challanRepositoryImpl struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *zap.Logger
+	cfg    *config.Config
 }
 
-func NewChallanRepository(db *gorm.DB) ChallanRepository {
-	return &challanRepositoryImpl{db: db}
+func NewChallanRepository(db *gorm.DB, logger *zap.Logger, cfg *config.Config) ChallanRepository {
+	return &challanRepositoryImpl{db: db, logger: logger, cfg: cfg}
 }
 
-func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domain.Challan, int, error) {
+func (r *challanRepositoryImpl) Search(ctx context.Context, criteria domain.SearchCriteria) ([]*domain.Challan, int, error) {
 	var dbChallans []domain.ChallanDB
-	query := r.db.Preload("Amounts").Preload("AddressDB").Where("tenantid = ?", criteria.TenantId)
+	query := r.db.WithContext(ctx).Preload("Amounts").Preload("AddressDB").Where("tenantid = ?", criteria.TenantId)
 
 	if criteria.Ids != "" {
 		query = query.Where("id IN ?", parseCommaSeparated(criteria.Ids))
@@ -55,10 +60,11 @@ func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domai
 	if criteria.Limit > 0 {
 		query = query.Limit(criteria.Limit)
 	} else {
-		query = query.Limit(50) // Default DIGIT limit
+		query = query.Limit(r.cfg.DefaultSearchLimit)
 	}
 
 	if err := query.Find(&dbChallans).Error; err != nil {
+		r.logger.Error("failed to execute search query", zap.Error(err))
 		return nil, 0, fmt.Errorf("failed to execute search query: %w", err)
 	}
 
@@ -70,18 +76,19 @@ func (r *challanRepositoryImpl) Search(criteria domain.SearchCriteria) ([]*domai
 	return challans, int(totalCount), nil
 }
 
-func (r *challanRepositoryImpl) Count(tenantId string) (map[string]int, error) {
+func (r *challanRepositoryImpl) Count(ctx context.Context, tenantId string) (map[string]int, error) {
 	var results []struct {
 		Status string `gorm:"column:applicationstatus"`
 		Count  int    `gorm:"column:count"`
 	}
 
-	err := r.db.Model(&domain.ChallanDB{}).
+	err := r.db.WithContext(ctx).Model(&domain.ChallanDB{}).
 		Select("applicationstatus, count(*) as count").
 		Where("tenantid = ?", tenantId).
 		Group("applicationstatus").
 		Scan(&results).Error
 	if err != nil {
+		r.logger.Error("failed to execute count query", zap.Error(err))
 		return nil, fmt.Errorf("failed to execute count query: %w", err)
 	}
 

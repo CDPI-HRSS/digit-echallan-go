@@ -3,8 +3,8 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/service"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/domain"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -49,7 +49,8 @@ func (ctrl *ChallanCalController) Calculate(c *gin.Context) {
 		return
 	}
 
-	calculations, err := ctrl.calcService.GetCalculation(&req)
+	ctx := c.Request.Context()
+	calculations, err := ctrl.calcService.GetCalculation(ctx, &req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, domain.ErrorRes{
 			Errors: []domain.Error{

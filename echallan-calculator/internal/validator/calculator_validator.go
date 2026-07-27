@@ -3,7 +3,7 @@ package validator
 import (
 	"fmt"
 
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/domain"
 )
 
 type CalculatorValidator struct{}

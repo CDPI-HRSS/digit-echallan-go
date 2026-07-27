@@ -1,14 +1,15 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
-	"github.com/CDPI-HRSS/calci_sp/internal/repository/http"
-	"github.com/CDPI-HRSS/calci_sp/internal/util"
-	"github.com/CDPI-HRSS/calci_sp/internal/validator"
+	"github.com/CDPI-HRSS/echallan-calculator/configs"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/domain"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/repository/http"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/util"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/validator"
 )
 
 type CalculationService struct {
@@ -29,11 +30,11 @@ func NewCalculationService(cfg *configs.Config, utils *util.CalculationUtils, sr
 	}
 }
 
-func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domain.Calculation, error) {
+func (s *CalculationService) GetCalculation(ctx context.Context, req *domain.CalculationReq) ([]domain.Calculation, error) {
 	if err := s.validator.ValidateCalculationReq(req); err != nil {
 		return nil, err
 	}
-	calculations, err := s.getCalculationInternal(req.RequestInfo, req.CalculationCriteria)
+	calculations, err := s.getCalculationInternal(ctx, req.RequestInfo, req.CalculationCriteria)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domai
 	for i := range req.CalculationCriteria {
 		criteria := &req.CalculationCriteria[i]
 		if criteria.Challan != nil && strings.EqualFold(criteria.Challan.ApplicationStatus, "CANCELLED") {
-			if err := s.CancelBill(req.RequestInfo, criteria.Challan); err != nil {
+			if err := s.CancelBill(ctx, req.RequestInfo, criteria.Challan); err != nil {
 				return nil, err
 			}
 		}
@@ -60,7 +61,7 @@ func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domai
 				}
 			}
 		}
-		err = s.demandService.GenerateDemand(req.RequestInfo, calculations, businessService)
+		err = s.demandService.GenerateDemand(ctx, req.RequestInfo, calculations, businessService)
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +70,7 @@ func (s *CalculationService) GetCalculation(req *domain.CalculationReq) ([]domai
 	return calculations, nil
 }
 
-func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestInfo, criteriaList []domain.CalculationCriteria) ([]domain.Calculation, error) {
+func (s *CalculationService) getCalculationInternal(ctx context.Context, requestInfo *domain.RequestInfo, criteriaList []domain.CalculationCriteria) ([]domain.Calculation, error) {
 	var calculations []domain.Calculation
 
 	for i := range criteriaList {
@@ -77,7 +78,7 @@ func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestI
 		challan := criteria.Challan
 		if challan == nil && criteria.ChallanNo != "" {
 			var err error
-			challan, err = s.utils.GetChallan(requestInfo, criteria.ChallanNo, criteria.TenantId)
+			challan, err = s.utils.GetChallan(ctx, requestInfo, criteria.ChallanNo, criteria.TenantId)
 			if err != nil {
 				return nil, err
 			}
@@ -114,7 +115,7 @@ func (s *CalculationService) getCalculationInternal(requestInfo *domain.RequestI
 	return calculations, nil
 }
 
-func (s *CalculationService) CancelBill(requestInfo *domain.RequestInfo, challan *domain.Challan) error {
+func (s *CalculationService) CancelBill(ctx context.Context, requestInfo *domain.RequestInfo, challan *domain.Challan) error {
 	if challan == nil {
 		return nil
 	}
@@ -134,7 +135,7 @@ func (s *CalculationService) CancelBill(requestInfo *domain.RequestInfo, challan
 	}
 
 	var responseTarget interface{}
-	err := s.srRepo.FetchResult(url, requestBody, &responseTarget)
+	err := s.srRepo.FetchResult(ctx, url, requestBody, &responseTarget)
 	if err != nil {
 		return fmt.Errorf("billing service failed to cancel demand: %w", err)
 	}

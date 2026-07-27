@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,8 +10,8 @@ import (
 	nethttp "net/http"
 	"time"
 
-	"github.com/CDPI-HRSS/calci_sp/configs"
-	"github.com/CDPI-HRSS/calci_sp/internal/domain"
+	"github.com/CDPI-HRSS/echallan-calculator/configs"
+	"github.com/CDPI-HRSS/echallan-calculator/internal/domain"
 )
 
 type ServiceRequestRepository struct {
@@ -25,7 +26,7 @@ func NewServiceRequestRepository() *ServiceRequestRepository {
 	}
 }
 
-func (r *ServiceRequestRepository) FetchResult(url string, requestPayload interface{}, responseTarget interface{}) error {
+func (r *ServiceRequestRepository) FetchResult(ctx context.Context, url string, requestPayload interface{}, responseTarget interface{}) error {
 	bodyBytes, err := json.Marshal(requestPayload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request payload: %w", err)
@@ -34,7 +35,7 @@ func (r *ServiceRequestRepository) FetchResult(url string, requestPayload interf
 	// DEBUG: log every outgoing request
 	log.Printf("[DEBUG] --> POST %s | body: %s", url, string(bodyBytes))
 
-	req, err := nethttp.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	req, err := nethttp.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -79,7 +80,7 @@ func NewDemandRepository(cfg *configs.Config, srRepo *ServiceRequestRepository) 
 	}
 }
 
-func (dr *DemandRepository) SaveDemand(requestInfo *domain.RequestInfo, demands []domain.Demand) ([]domain.Demand, error) {
+func (dr *DemandRepository) SaveDemand(ctx context.Context, requestInfo *domain.RequestInfo, demands []domain.Demand) ([]domain.Demand, error) {
 	url := dr.cfg.BillingHost + dr.cfg.DemandCreateEndpoint
 	reqPayload := domain.DemandRequest{
 		RequestInfo: requestInfo,
@@ -87,14 +88,14 @@ func (dr *DemandRepository) SaveDemand(requestInfo *domain.RequestInfo, demands 
 	}
 
 	var respPayload domain.DemandResponse
-	err := dr.srRepo.FetchResult(url, reqPayload, &respPayload)
+	err := dr.srRepo.FetchResult(ctx, url, reqPayload, &respPayload)
 	if err != nil {
 		return nil, err
 	}
 	return respPayload.Demands, nil
 }
 
-func (dr *DemandRepository) UpdateDemand(requestInfo *domain.RequestInfo, demands []domain.Demand) ([]domain.Demand, error) {
+func (dr *DemandRepository) UpdateDemand(ctx context.Context, requestInfo *domain.RequestInfo, demands []domain.Demand) ([]domain.Demand, error) {
 	url := dr.cfg.BillingHost + dr.cfg.DemandUpdateEndpoint
 	reqPayload := domain.DemandRequest{
 		RequestInfo: requestInfo,
@@ -102,7 +103,7 @@ func (dr *DemandRepository) UpdateDemand(requestInfo *domain.RequestInfo, demand
 	}
 
 	var respPayload domain.DemandResponse
-	err := dr.srRepo.FetchResult(url, reqPayload, &respPayload)
+	err := dr.srRepo.FetchResult(ctx, url, reqPayload, &respPayload)
 	if err != nil {
 		return nil, err
 	}

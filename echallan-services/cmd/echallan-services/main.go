@@ -58,23 +58,27 @@ func main() {
 	}
 
 	// 4. Dependency Injection (Wiring)
-	repo := postgres.NewChallanRepository(db)
-	userRepo := httpclient.NewUserRepository(cfg)
+	repo := postgres.NewChallanRepository(db, logger, cfg)
+	userRepo := httpclient.NewUserRepository(cfg, logger)
 	mdmsRepo := httpclient.NewMdmsRepository(cfg)
 	locRepo := httpclient.NewLocationRepository(cfg)
 	val := validator.NewChallanValidator(mdmsRepo, locRepo)
-	notifSvc := service.NewNotificationService(cfg, producer, mdmsRepo)
+	notifSvc := service.NewNotificationService(cfg, producer, mdmsRepo, logger)
 	idgenRepo := httpclient.NewIdGenRepository(cfg)
-	billRepo := httpclient.NewBillingRepository(cfg)
+	billRepo := httpclient.NewBillingRepository(cfg, logger)
 
-	challanSvc := service.NewChallanService(cfg, producer, repo, val, userRepo, notifSvc, idgenRepo, billRepo)
+	challanSvc := service.NewChallanService(cfg, producer, repo, val, userRepo, notifSvc, idgenRepo, billRepo, logger)
 	challanCtrl := httptransport.NewChallanController(challanSvc, producer)
 
 	paymentSvc := service.NewPaymentUpdateService(producer, repo)
 	fsSvc := service.NewFilestoreUpdateService(producer, repo)
 
-	consumer := kafkatransport.NewConsumer([]string{cfg.KafkaBrokers}, paymentSvc, fsSvc, notifSvc)
-	consumer.StartListening()
+	consumer := kafkatransport.NewConsumer([]string{cfg.KafkaBrokers}, paymentSvc, fsSvc, notifSvc, logger)
+	
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	consumer.StartListening(ctx)
 
 	// 5. Router Setup & Middleware
 	gin.SetMode(gin.ReleaseMode)
@@ -86,7 +90,10 @@ func main() {
 
 	// CORS Middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOriginFunc: func(origin string) bool {
+			// In production, validate against exact domain or regex
+			return origin == "http://localhost:3000" || origin == "https://digit.org" || origin == "http://localhost:8080"
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -120,15 +127,13 @@ func main() {
 	}()
 
 	// Wait for interrupt signal to gracefully shut down the server
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	<-ctx.Done()
 	zap.L().Info("Graceful Shutdown initialized...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		zap.L().Fatal("Server forced to shutdown", zap.Error(err))
 	}
 	

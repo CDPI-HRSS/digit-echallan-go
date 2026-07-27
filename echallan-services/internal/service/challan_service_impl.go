@@ -1,10 +1,12 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/CDPI-HRSS/echallan-services/internal/domain"
+	"go.uber.org/zap"
 
 	"github.com/CDPI-HRSS/echallan-services/configs"
 	"github.com/CDPI-HRSS/echallan-services/internal/repository/postgres"
@@ -23,9 +25,10 @@ type challanServiceImpl struct {
 	producer  *kafka.Producer
 	repo      postgres.ChallanRepository
 	validator *validator.ChallanValidator
+	logger    *zap.Logger
 }
 
-func NewChallanService(cfg *config.Config, producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator, userRepo *http.UserRepository, notifSvc *NotificationService, idgenRepo *http.IdGenRepository, billRepo *http.BillingRepository) ChallanService {
+func NewChallanService(cfg *config.Config, producer *kafka.Producer, repo postgres.ChallanRepository, val *validator.ChallanValidator, userRepo *http.UserRepository, notifSvc *NotificationService, idgenRepo *http.IdGenRepository, billRepo *http.BillingRepository, logger *zap.Logger) ChallanService {
 	return &challanServiceImpl{
 		cfg:       cfg,
 		producer:  producer,
@@ -35,10 +38,11 @@ func NewChallanService(cfg *config.Config, producer *kafka.Producer, repo postgr
 		idgenRepo: idgenRepo,
 		billRepo:  billRepo,
 		validator: val,
+		logger:    logger,
 	}
 }
 
-func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan, error) {
+func (s *challanServiceImpl) Create(ctx context.Context, req *domain.ChallanRequest) (*domain.Challan, error) {
 	if err := s.validator.ValidateCreateRequest(req); err != nil {
 		return nil, err
 	}
@@ -59,7 +63,7 @@ func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan
 	
 	// User Creation / UUID assignment
 	if req.Challan.Citizen != nil {
-		createdUser, err := s.userRepo.CreateUser(req.RequestInfo, req.Challan.Citizen)
+		createdUser, err := s.userRepo.CreateUser(ctx, req.RequestInfo, req.Challan.Citizen)
 		if err != nil || createdUser == nil {
 			return nil, fmt.Errorf("failed to create/fetch citizen profile from User Service: %w", err)
 		}
@@ -83,7 +87,7 @@ func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan
 	}
 
 	// Calculation Call
-	err = s.billRepo.GenerateBill(req.RequestInfo, req.Challan)
+	err = s.billRepo.GenerateBill(ctx, req.RequestInfo, req.Challan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate calculation/demand: %w", err)
 	}
@@ -98,13 +102,13 @@ func (s *challanServiceImpl) Create(req *domain.ChallanRequest) (*domain.Challan
 	return req.Challan, nil
 }
 
-func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan, error) {
+func (s *challanServiceImpl) Update(ctx context.Context, req *domain.ChallanRequest) (*domain.Challan, error) {
 	// 1. Validation
 	searchCriteria := domain.SearchCriteria{
 		TenantId:  req.Challan.TenantId,
 		ChallanNo: req.Challan.ChallanNo,
 	}
-	searchResult, _, err := s.Search(searchCriteria, req.RequestInfo)
+	searchResult, _, err := s.Search(ctx, searchCriteria, req.RequestInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search for existing challan during update: %w", err)
 	}
@@ -135,7 +139,7 @@ func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan
 	req.Challan.AuditDetails.LastModifiedTime = time.Now().UnixMilli()
 
 	// 4. Calculation Call
-	err = s.billRepo.GenerateBill(req.RequestInfo, req.Challan)
+	err = s.billRepo.GenerateBill(ctx, req.RequestInfo, req.Challan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update calculation/demand: %w", err)
 	}
@@ -150,13 +154,13 @@ func (s *challanServiceImpl) Update(req *domain.ChallanRequest) (*domain.Challan
 	return req.Challan, nil
 }
 
-func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, int, error) {
+func (s *challanServiceImpl) Search(ctx context.Context, criteria domain.SearchCriteria, reqInfo *domain.RequestInfo) ([]*domain.Challan, int, error) {
 	// RBAC logic
 	if reqInfo != nil && reqInfo.UserInfo != nil && reqInfo.UserInfo.Type != "EMPLOYEE" {
 		criteria.AccountId = reqInfo.UserInfo.Uuid
 	}
 
-	challans, count, err := s.repo.Search(criteria)
+	challans, count, err := s.repo.Search(ctx, criteria)
 	if err != nil || len(challans) == 0 {
 		return challans, count, err
 	}
@@ -170,9 +174,13 @@ func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *dom
 		}
 	}
 
-	fmt.Printf("SEARCH uuids: %v\n", uuids)
-	users, err := s.userRepo.SearchUsers(reqInfo, uuids)
-	fmt.Printf("SEARCH users returned: %v, err: %v\n", len(users), err)
+	s.logger.Info("SEARCH users", zap.Strings("uuids", uuids))
+	users, err := s.userRepo.SearchUsers(ctx, reqInfo, uuids)
+	if err != nil {
+		s.logger.Error("SEARCH users failed", zap.Error(err))
+	} else {
+		s.logger.Info("SEARCH users returned", zap.Int("count", len(users)))
+	}
 	userObjMap := make(map[string]*domain.UserInfo)
 	for i := range users {
 		userObjMap[users[i].Uuid] = &users[i]
@@ -187,9 +195,9 @@ func (s *challanServiceImpl) Search(criteria domain.SearchCriteria, reqInfo *dom
 	return challans, count, nil
 }
 
-func (s *challanServiceImpl) Count(tenantId string, reqInfo *domain.RequestInfo) (map[string]interface{}, error) {
+func (s *challanServiceImpl) Count(ctx context.Context, tenantId string, reqInfo *domain.RequestInfo) (map[string]interface{}, error) {
 	// Dynamic Dashboard Data logic
-	countMap, err := s.repo.Count(tenantId)
+	countMap, err := s.repo.Count(ctx, tenantId)
 	if err != nil {
 		return nil, err
 	}
